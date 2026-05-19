@@ -5,18 +5,24 @@ A comprehensive Claude Code configuration tailored for security researchers, red
 ## Quick Setup
 
 ```bash
-# One-liner install (global)
+# Method 1: Plugin marketplace (recommended)
+git clone https://github.com/hypnguyen1209/offensive-claude.git ~/offensive-claude
+# Then in Claude Code:
+/plugin marketplace add ~/offensive-claude
+/plugin install offensive-claude
+```
+
+```bash
+# Method 2: One-liner install (copies to ~/.claude/)
 curl -sL https://raw.githubusercontent.com/hypnguyen1209/offensive-claude/main/install.sh | bash
 ```
 
 ```bash
-# Or manual clone
-git clone https://github.com/hypnguyen1209/offensive-claude.git ~/.claude/
-```
-
-```bash
-# Or project-specific
-git clone https://github.com/hypnguyen1209/offensive-claude.git <your-project>/.claude/
+# Method 3: Manual clone
+git clone https://github.com/hypnguyen1209/offensive-claude.git ~/offensive-claude
+cp -r ~/offensive-claude/plugins/offensive-claude/skills ~/.claude/skills
+cp -r ~/offensive-claude/plugins/offensive-claude/agents ~/.claude/agents
+cp ~/offensive-claude/CLAUDE.md ~/.claude/CLAUDE.md
 ```
 
 Skills and agents activate automatically — no additional configuration needed.
@@ -25,11 +31,20 @@ Skills and agents activate automatically — no additional configuration needed.
 
 ```
 .
-├── CLAUDE.md                  # System prompt & behavior config
-├── settings.json              # Claude Code settings, permissions, MCP servers
-├── agents/                    # 6 specialized sub-agents (model: opus)
-├── skills/                    # 25 offensive/defensive skill modules
-│   └── references/            # 46 detailed vulnerability pattern files
+├── .claude-plugin/
+│   └── marketplace.json           # Plugin marketplace registry
+├── plugins/offensive-claude/      # Plugin source
+│   ├── .claude-plugin/plugin.json # Plugin manifest
+│   ├── skills/                    # 25 skill modules (SKILL.md per directory)
+│   │   ├── recon-osint/
+│   │   ├── vulnerability-analysis/
+│   │   ├── exploit-development/
+│   │   ├── ...
+│   │   └── references/            # 47 vulnerability pattern files
+│   └── agents/                    # 6 specialized sub-agents
+├── CLAUDE.md                      # System prompt & behavior config
+├── settings.json                  # Claude Code settings, permissions, MCP servers
+├── install.sh                     # One-liner install script
 └── README.md
 ```
 
@@ -74,7 +89,7 @@ Skills and agents activate automatically — no additional configuration needed.
 | ai-researcher | ML architecture, training optimization, interpretability, safety |
 | network-analyst | Packet analysis, protocol dissection, IDS/IPS rule creation |
 
-## Vulnerability References (46 files)
+## Vulnerability References (47 files)
 
 Detailed patterns with vulnerable/secure code examples, organized by category:
 
@@ -105,8 +120,8 @@ Detailed patterns with vulnerable/secure code examples, organized by category:
 
 ## Customization
 
-- Add new skills: create `skills/XX-name.md` with YAML frontmatter
-- Add new agents: create `agents/name.md` with role description
+- Add new skills: create `plugins/offensive-claude/skills/<name>/SKILL.md` with YAML frontmatter
+- Add new agents: create `plugins/offensive-claude/agents/<name>.md` with role description
 - Add MCP servers: edit `mcpServers` in `settings.json`
 - Modify permissions: edit `permissions.allow` in `settings.json`
 

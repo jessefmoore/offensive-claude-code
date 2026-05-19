@@ -11,11 +11,21 @@ echo "[*] Installing offensive-claude to $DEST"
 TMPDIR=$(mktemp -d)
 git clone --depth 1 "$REPO" "$TMPDIR" 2>/dev/null
 
+SRC="$TMPDIR/plugins/offensive-claude"
+
 # Copy skills
-mkdir -p "$DEST/skills/references" "$DEST/agents"
-cp "$TMPDIR"/skills/*.md "$DEST/skills/"
-cp "$TMPDIR"/skills/references/*.md "$DEST/skills/references/"
-cp "$TMPDIR"/agents/*.md "$DEST/agents/"
+mkdir -p "$DEST/skills" "$DEST/agents"
+for dir in "$SRC"/skills/*/; do
+  skill_name=$(basename "$dir")
+  if [ "$skill_name" = "references" ]; then
+    cp -r "$dir" "$DEST/skills/references"
+  elif [ -f "$dir/SKILL.md" ]; then
+    cp "$dir/SKILL.md" "$DEST/skills/$skill_name.md"
+  fi
+done
+
+# Copy agents
+cp "$SRC"/agents/*.md "$DEST/agents/"
 
 # Copy CLAUDE.md if not exists
 if [ ! -f "$DEST/CLAUDE.md" ]; then
