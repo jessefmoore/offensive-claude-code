@@ -5,11 +5,18 @@ A comprehensive Claude Code configuration tailored for security researchers, red
 ## Quick Setup
 
 ```bash
-# Option 1: Global (all projects)
-cp -r . ~/.claude/
+# One-liner install (global)
+curl -sL https://raw.githubusercontent.com/hypnguyen1209/offensive-claude/main/install.sh | bash
+```
 
-# Option 2: Project-specific
-cp -r . <your-project>/.claude/
+```bash
+# Or manual clone
+git clone https://github.com/hypnguyen1209/offensive-claude.git ~/.claude/
+```
+
+```bash
+# Or project-specific
+git clone https://github.com/hypnguyen1209/offensive-claude.git <your-project>/.claude/
 ```
 
 Skills and agents activate automatically — no additional configuration needed.
