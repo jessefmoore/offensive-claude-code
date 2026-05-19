@@ -16,18 +16,10 @@ cd ~/offensive-claude && bash install.sh
 ```
 
 ```bash
-# Method 3: Plugin marketplace (requires Claude Code >= 2.2.0)
+# Method 3: Manual copy
 git clone https://github.com/hypnguyen1209/offensive-claude.git ~/offensive-claude
-# Then in Claude Code:
-/plugin marketplace add ~/offensive-claude
-/plugin install offensive-claude
-```
-
-```bash
-# Method 4: Manual copy
-git clone https://github.com/hypnguyen1209/offensive-claude.git ~/offensive-claude
-cp -r ~/offensive-claude/plugins/offensive-claude/skills ~/.claude/skills
-cp -r ~/offensive-claude/plugins/offensive-claude/agents ~/.claude/agents
+cp -r ~/offensive-claude/skills ~/.claude/skills
+cp -r ~/offensive-claude/agents ~/.claude/agents
 cp ~/offensive-claude/CLAUDE.md ~/.claude/CLAUDE.md
 ```
 
@@ -37,17 +29,13 @@ Skills and agents activate automatically — no additional configuration needed.
 
 ```
 .
-├── .claude-plugin/
-│   └── marketplace.json           # Plugin marketplace registry
-├── plugins/offensive-claude/      # Plugin source
-│   ├── .claude-plugin/plugin.json # Plugin manifest
-│   ├── skills/                    # 25 skill modules (SKILL.md per directory)
-│   │   ├── recon-osint/
-│   │   ├── vulnerability-analysis/
-│   │   ├── exploit-development/
-│   │   ├── ...
-│   │   └── references/            # 47 vulnerability pattern files
-│   └── agents/                    # 6 specialized sub-agents
+├── skills/                        # 25 skill modules (SKILL.md per directory)
+│   ├── recon-osint/
+│   ├── vulnerability-analysis/
+│   ├── exploit-development/
+│   ├── ...
+│   └── references/                # 47 vulnerability pattern files
+├── agents/                        # 6 specialized sub-agents
 ├── CLAUDE.md                      # System prompt & behavior config
 ├── settings.json                  # Claude Code settings, permissions, MCP servers
 ├── install.sh                     # One-liner install script
@@ -126,8 +114,8 @@ Detailed patterns with vulnerable/secure code examples, organized by category:
 
 ## Customization
 
-- Add new skills: create `plugins/offensive-claude/skills/<name>/SKILL.md` with YAML frontmatter
-- Add new agents: create `plugins/offensive-claude/agents/<name>.md` with role description
+- Add new skills: create `skills/<name>/SKILL.md` with YAML frontmatter
+- Add new agents: create `agents/<name>.md` with role description
 - Add MCP servers: edit `mcpServers` in `settings.json`
 - Modify permissions: edit `permissions.allow` in `settings.json`
 
