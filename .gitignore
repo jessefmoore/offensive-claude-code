@@ -1,0 +1,24 @@
+# Client engagement work — never commit to a public repo
+engagements/
+
+# Secrets — used by skills/scripts/redact_engagement.py to wipe creds from
+# the deliverable. Defense-in-depth: even though engagements/ is gitignored,
+# explicitly deny .secrets.yaml at any depth in case someone moves one.
+.secrets.yaml
+**/.secrets.yaml
+
+# Local scratch
+.tmp-*/
+*.log
+.env
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
