@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "environment-guide": {
+      "source": "badsectorlabs/ludus-skills",
+      "sourceType": "gitlab",
+      "skillPath": "skills/environment-guide/SKILL.md",
+      "computedHash": "c1787f1f8e1830f869713e0998fbe594181096f4e9ca79713cae2b585e1cdc98"
+    },
+    "ludus-cli": {
+      "source": "badsectorlabs/ludus-skills",
+      "sourceType": "gitlab",
+      "skillPath": "skills/ludus-cli/SKILL.md",
+      "computedHash": "13a7fe5d2a181ba0471ca719e87296c12364566e5d3e9d633c73ebdecd30c14b"
+    },
+    "range-config": {
+      "source": "badsectorlabs/ludus-skills",
+      "sourceType": "gitlab",
+      "skillPath": "skills/range-config/SKILL.md",
+      "computedHash": "ef0c0ef8d2ffbfc50273e7b2600ce9f7bf06209a44eb8106e4adb4a339f8bc08"
+    },
+    "troubleshooting": {
+      "source": "badsectorlabs/ludus-skills",
+      "sourceType": "gitlab",
+      "skillPath": "skills/troubleshooting/SKILL.md",
+      "computedHash": "ee2b246976346fdc53ca5ee6edbe6c5e06bae1e51cd08c5c0281c6991f608be0"
+    }
+  }
+}
