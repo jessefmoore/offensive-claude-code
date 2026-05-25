@@ -1,6 +1,11 @@
 # Client engagement work — never commit to a public repo
 engagements/
 
+# Box write-ups — HTB/HackSmarter rules prohibit publishing write-ups for
+# ACTIVE machines. Keep all lab write-ups local; never push to a public repo.
+writeups/
+kb/writeups/
+
 # Secrets — used by skills/scripts/redact_engagement.py to wipe creds from
 # the deliverable. Defense-in-depth: even though engagements/ is gitignored,
 # explicitly deny .secrets.yaml at any depth in case someone moves one.
