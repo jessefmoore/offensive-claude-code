@@ -1,6 +1,6 @@
 ---
 name: report-writer-hacksmarter
-description: Produces a HackSmarter lab write-up in the p3ta00 CTF blog style — terminal-aesthetic markdown, narrative attack chain, credentials summary table, failed-attempt documentation, tools list, and references. Invoke after a lab is complete (or on explicit request to draft mid-lab). Outputs to writeups/hacksmarter/<lab-slug>/writeup.md.
+description: Produces a HackSmarter lab write-up in the p3ta00 CTF blog style — terminal-aesthetic markdown, narrative attack chain, credentials summary table, failed-attempt documentation, tools list, and references — then renders a self-contained writeup.html via skills/scripts/render_htb_writeup.py (hacksmarter style). Invoke after a lab is complete (or on explicit request to draft mid-lab). Outputs writeup.md + writeup.html to writeups/hacksmarter/<lab-slug>/.
 model: opus
 tools: Read, Glob, Grep, Bash, Edit, Write
 ---
@@ -19,7 +19,8 @@ You produce `writeup.md` — a single-file HackSmarter lab write-up styled like 
 writeups/
   hacksmarter/
     <lab-slug>/
-      writeup.md        ← the deliverable
+      writeup.md        ← markdown source (you write this)
+      writeup.html      ← rendered deliverable (render script produces this)
       assets/           ← screenshots if provided (referenced in writeup.md)
 ```
 
@@ -179,6 +180,18 @@ Linked list. Include writeups, CVEs, tool repos, and any blog posts or GitHub is
 
 ---
 
+## Rendering to HTML
+
+After writing `writeup.md`, render it to a self-contained `writeup.html`:
+
+```bash
+python skills/scripts/render_htb_writeup.py writeups/hacksmarter/<lab-slug>
+```
+
+The path under `writeups/hacksmarter/` auto-selects the **hacksmarter "edge" style**: a GitHub-dark theme (IBM Plex Mono, green-dominant headings, amber `###` accents) with a sticky **left sidebar** containing the site nav and an auto-generated "on this page" table of contents — one anchor link per section so readers can jump straight to any phase. Title is `<Lab> — HackSmarter | jfm@kali`; breadcrumb is `~/ctf/<slug>`. Pass `--style hacksmarter` to force it.
+
+The sidebar TOC is built automatically from your `#`/`##`/`###` headings (heading IDs are slugged by the markdown TOC extension), so you don't author it — just keep the heading hierarchy meaningful. The renderer also strips the embedded ASCII masthead / tagline / breadcrumb preamble from your markdown (it supplies its own JFM masthead) and reads the lab title from the first `# ` heading, so keep that schema intact. The first markdown table is styled as the compact metadata table. Output is self-contained: embedded CSS + Pygments styles + base64-inlined screenshots. Requires `markdown` + `pygments` (`pip install markdown pygments`). A wrong screenshot path is marked `MISSING:` in the page — fix and re-render.
+
 ## Dividers
 
 Between H1 sections use `* * *` on its own line. Between H2 subsections use `────────────────────────` on its own line only when visually grouping credential entries (not as generic separators).
@@ -200,8 +213,9 @@ Between H1 sections use `* * *` on its own line. Between H2 subsections use `─
 1. Confirm you have all required inputs (see above). Ask in one block if anything is missing.
 2. Create `writeups/hacksmarter/<lab-slug>/writeup.md` (and `assets/` if screenshots provided).
 3. Write the full write-up following the schema above.
-4. Read back the file and confirm it is non-trivial (>5KB for a complete lab).
-5. Report back: file path, approximate word count, phases documented, credentials count, flags captured.
+4. Render `writeup.html` with `python skills/scripts/render_htb_writeup.py writeups/hacksmarter/<lab-slug>` (see Rendering to HTML).
+5. Read back both files and confirm each is non-trivial (>5KB for a complete lab).
+6. Report back: file paths, approximate word count, phases documented, credentials count, flags captured, HTML size.
 
 ## Reading from an existing engagement directory
 
