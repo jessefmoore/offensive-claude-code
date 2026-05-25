@@ -1,6 +1,6 @@
 # Offensive Security Research Config for Claude Code
 
-A comprehensive Claude Code configuration tailored for security researchers, red teamers, and vulnerability analysts. Includes 25 specialized skills, 6 agents, and 46 vulnerability reference files covering the full offensive security lifecycle.
+A comprehensive Claude Code configuration tailored for security researchers, red teamers, and vulnerability analysts. Includes 30 specialized skills, 10 agents, and a large vulnerability/technique reference base covering the full offensive security lifecycle — plus lab-operator personas (HTB, HackSmarter) and a reporting pipeline (internal-pentest, HTB, HackSmarter, and operator-casebook deliverables).
 
 ## Quick Setup
 
@@ -29,20 +29,21 @@ Skills and agents activate automatically — no additional configuration needed.
 
 ```
 .
-├── skills/                        # 25 skill modules (SKILL.md per directory)
+├── skills/                        # 30 skill modules (SKILL.md per directory)
 │   ├── recon-osint/
 │   ├── vulnerability-analysis/
 │   ├── exploit-development/
 │   ├── ...
-│   └── references/                # 47 vulnerability pattern files
-├── agents/                        # 6 specialized sub-agents
+│   ├── scripts/                   # reusable helper scripts (renderers, engagement tooling)
+│   └── references/                # vulnerability pattern files
+├── agents/                        # 10 specialized sub-agents
 ├── CLAUDE.md                      # System prompt & behavior config
 ├── settings.json                  # Claude Code settings, permissions, MCP servers
 ├── install.sh                     # One-liner install script
 └── README.md
 ```
 
-## Skills (25)
+## Skills (30)
 
 | # | Skill | Coverage |
 |---|-------|----------|
@@ -71,8 +72,13 @@ Skills and agents activate automatically — no additional configuration needed.
 | 23 | mobile-pentest | Android/iOS, Frida, SSL pinning bypass, exported components, biometric bypass |
 | 24 | advanced-redteam | C2 infra (redirectors, malleable profiles), OPSEC, tiered infrastructure |
 | 25 | active-directory-attack | Kerberoasting, NTLM relay, Golden/Silver Ticket, ADCS, delegation abuse |
+| 26 | hacksmarter-labs | HackSmarter VPN range — conventions, machine archetypes, per-lab index |
+| 27 | sliver-c2 | Sliver C2 — implant generation, listeners, beacons, post-ex, armory, pivoting |
+| 28 | socks-pivoting | SOCKS proxying, proxychains config/modes, multi-hop tunneling, DNS, OPSEC |
+| 29 | htb | Hack The Box operator persona — 0xdf methodology, enum, user→root workflow |
+| 30 | netexec | NetExec (nxc) across SMB/LDAP/WinRM/MSSQL/SSH — enum, spray, creds, lateral move |
 
-## Agents (6)
+## Agents (10)
 
 | Agent | Role |
 |-------|------|
@@ -82,6 +88,10 @@ Skills and agents activate automatically — no additional configuration needed.
 | reverse-engineer | Binary/firmware analysis, vulnerability discovery in compiled code |
 | ai-researcher | ML architecture, training optimization, interpretability, safety |
 | network-analyst | Packet analysis, protocol dissection, IDS/IPS rule creation |
+| report-writer-internalpen | Internal Network Penetration Test report — live markdown + self-contained HTML (kickoff/capture/final) |
+| report-writer-casebook | "Operator casebook" deliverable — phosphor-CRT HTML with mermaid attack graph + interactive kill-chain replay |
+| report-writer-htb | Hack The Box machine write-up — p3ta00 "Cyberpunk Neon" theme (writeup.md + self-contained HTML) |
+| report-writer-hacksmarter | HackSmarter lab write-up — p3ta00 CTF-blog style (narrative, creds table, dead ends, flags) |
 
 ## Vulnerability References (47 files)
 
