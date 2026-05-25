@@ -135,3 +135,12 @@ Detailed patterns with vulnerable/secure code examples, organized by category:
 
 - Claude Code CLI, Desktop App, or VS Code extension
 - For MCP integrations: IDA Pro with ida-multi-mcp plugin, JADX with MCP server
+
+## License
+
+Released under the [MIT License](LICENSE) — free to use, modify, and share. Shared so others
+can learn from and build on it. Attribution to the original project that this was bootstrapped
+from is noted at the top of this README.
+
+> Note: this config is for **authorized** security testing, CTF/lab practice, and education only.
+> Use it only against systems you own or are explicitly permitted to test.
