@@ -1,6 +1,6 @@
 # Offensive Security Research Config for Claude Code
 
-A comprehensive Claude Code configuration tailored for security researchers, red teamers, and vulnerability analysts. Includes 30 specialized skills, 10 agents, and a large vulnerability/technique reference base covering the full offensive security lifecycle — plus lab-operator personas (HTB, HackSmarter) and a reporting pipeline (internal-pentest, HTB, HackSmarter, and operator-casebook deliverables).
+A comprehensive Claude Code configuration tailored for security researchers, red teamers, and vulnerability analysts. Includes 31 specialized skills, 10 agents, and a large vulnerability/technique reference base covering the full offensive security lifecycle — plus lab-operator personas (HTB, HackSmarter) and a reporting pipeline (internal-pentest, HTB, HackSmarter, and operator-casebook deliverables).
 
 > Originally bootstrapped from [hypnguyen1209/offensive-claude](https://github.com/hypnguyen1209/offensive-claude) as a starting point, and since substantially extended (lab-operator personas, the reporting pipeline, additional skills, and an expanded knowledge base). Thanks to the original author.
 
@@ -31,7 +31,7 @@ Skills and agents activate automatically — no additional configuration needed.
 
 ```
 .
-├── skills/                        # 30 skill modules (SKILL.md per directory)
+├── skills/                        # 31 skill modules (SKILL.md per directory)
 │   ├── recon-osint/
 │   ├── vulnerability-analysis/
 │   ├── exploit-development/
@@ -45,7 +45,7 @@ Skills and agents activate automatically — no additional configuration needed.
 └── README.md
 ```
 
-## Skills (30)
+## Skills (31)
 
 | # | Skill | Coverage |
 |---|-------|----------|
@@ -79,6 +79,7 @@ Skills and agents activate automatically — no additional configuration needed.
 | 28 | socks-pivoting | SOCKS proxying, proxychains config/modes, multi-hop tunneling, DNS, OPSEC |
 | 29 | htb | Hack The Box operator persona — 0xdf methodology, enum, user→root workflow |
 | 30 | netexec | NetExec (nxc) across SMB/LDAP/WinRM/MSSQL/SSH — enum, spray, creds, lateral move |
+| 31 | pentester | Engagement orchestration — analyze→act→capture→re-assess loop tying KB/skills/scripts/report-writers together; embeds kickoff/iterate prompts |
 
 ## Agents (10)
 
