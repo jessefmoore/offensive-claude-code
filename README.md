@@ -8,18 +8,18 @@ A comprehensive Claude Code configuration tailored for security researchers, red
 
 ```bash
 # Method 1: One-liner install (recommended)
-curl -sL https://raw.githubusercontent.com/jessefmoore/offensive-claude/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/jessefmoore/offensive-claude-code/main/install.sh | bash
 ```
 
 ```bash
 # Method 2: Clone + install script
-git clone https://github.com/jessefmoore/offensive-claude.git ~/offensive-claude
+git clone https://github.com/jessefmoore/offensive-claude-code.git ~/offensive-claude
 cd ~/offensive-claude && bash install.sh
 ```
 
 ```bash
 # Method 3: Manual copy
-git clone https://github.com/jessefmoore/offensive-claude.git ~/offensive-claude
+git clone https://github.com/jessefmoore/offensive-claude-code.git ~/offensive-claude
 cp -r ~/offensive-claude/skills ~/.claude/skills
 cp -r ~/offensive-claude/agents ~/.claude/agents
 cp ~/offensive-claude/CLAUDE.md ~/.claude/CLAUDE.md

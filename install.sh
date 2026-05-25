@@ -3,7 +3,7 @@
 set -e
 
 DEST="${CLAUDE_HOME:-$HOME/.claude}"
-REPO="https://github.com/jessefmoore/offensive-claude"
+REPO="https://github.com/jessefmoore/offensive-claude-code"
 
 echo "[*] Installing offensive-claude to $DEST"
 
