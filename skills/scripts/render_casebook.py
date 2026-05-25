@@ -1872,7 +1872,6 @@ def emit_host_grid(hosts: dict[str, HostRow], findings_by_id: dict[str, Finding]
         cards.append(f"""
     <div class="host {role} host-clickable" data-host='{data_host}'>
       <div class="name">{htmlescape(kind_label)} <span class="ip">{htmlescape(h.ip)}</span></div>
-      <div class="role">{htmlescape(h.host)}</div>
       <div class="verdict">{verdict}<div class="findings">{len(h.findings)} findings · {crit_count} Critical</div><div class="findings">{findings_str}</div></div>
     </div>""")
     return f"""
