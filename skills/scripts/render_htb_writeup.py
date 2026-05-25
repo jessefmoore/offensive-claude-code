@@ -61,7 +61,7 @@ STYLES = {
         "tagline": "Sr. cybersecurity advisor | and helping others with cybersecurity",
         "page_title": "JFM // {title} — HTB",
         "nav": [
-            ("~/ home", "https://p3ta00.github.io/"),
+            ("~/ home", "#"),
             ("~/htb", "#"),
             ("~/writeups", "#"),
             ("~/about", "#"),
@@ -73,7 +73,7 @@ STYLES = {
         "tagline": "Security Advisor | jessefmoore on LinkedIn, X, and GitHub",
         "page_title": "{title} — HackSmarter | jfm@kali",
         "nav": [
-            ("~/ home", "https://p3ta00.github.io/"),
+            ("~/ home", "#"),
             ("~/ctf", "#"),
             ("~/writeups", "#"),
             ("~/about", "#"),
@@ -261,7 +261,7 @@ footer.site-footer{background:var(--bg2);border-top:1px solid var(--border);padd
 
 # Sidebar site-nav for the edge style. {slug} is substituted for the active item.
 EDGE_NAV = [
-    ("~/ home", "https://p3ta00.github.io/", False),
+    ("~/ home", "#", False),
     ("~/ctf/", "#", False),
     ("~/ctf/{slug}", "#", True),
     ("~/blog/", "#", False),
