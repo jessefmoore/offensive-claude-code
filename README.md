@@ -2,22 +2,24 @@
 
 A comprehensive Claude Code configuration tailored for security researchers, red teamers, and vulnerability analysts. Includes 30 specialized skills, 10 agents, and a large vulnerability/technique reference base covering the full offensive security lifecycle — plus lab-operator personas (HTB, HackSmarter) and a reporting pipeline (internal-pentest, HTB, HackSmarter, and operator-casebook deliverables).
 
+> Originally bootstrapped from [hypnguyen1209/offensive-claude](https://github.com/hypnguyen1209/offensive-claude) as a starting point, and since substantially extended (lab-operator personas, the reporting pipeline, additional skills, and an expanded knowledge base). Thanks to the original author.
+
 ## Quick Setup
 
 ```bash
 # Method 1: One-liner install (recommended)
-curl -sL https://raw.githubusercontent.com/hypnguyen1209/offensive-claude/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/jessefmoore/offensive-claude/main/install.sh | bash
 ```
 
 ```bash
 # Method 2: Clone + install script
-git clone https://github.com/hypnguyen1209/offensive-claude.git ~/offensive-claude
+git clone https://github.com/jessefmoore/offensive-claude.git ~/offensive-claude
 cd ~/offensive-claude && bash install.sh
 ```
 
 ```bash
 # Method 3: Manual copy
-git clone https://github.com/hypnguyen1209/offensive-claude.git ~/offensive-claude
+git clone https://github.com/jessefmoore/offensive-claude.git ~/offensive-claude
 cp -r ~/offensive-claude/skills ~/.claude/skills
 cp -r ~/offensive-claude/agents ~/.claude/agents
 cp ~/offensive-claude/CLAUDE.md ~/.claude/CLAUDE.md

@@ -3,7 +3,7 @@
 set -e
 
 DEST="${CLAUDE_HOME:-$HOME/.claude}"
-REPO="https://github.com/hypnguyen1209/offensive-claude"
+REPO="https://github.com/jessefmoore/offensive-claude"
 
 echo "[*] Installing offensive-claude to $DEST"
 
@@ -37,8 +37,8 @@ fi
 rm -rf "$TMPDIR"
 
 echo "[+] Done! Installed:"
-echo "    - 25 skills"
-echo "    - 6 agents"
-echo "    - 47 vulnerability references"
+echo "    - 30 skills"
+echo "    - 10 agents"
+echo "    - vulnerability/technique references"
 echo ""
 echo "    Skills are active globally for all projects."
