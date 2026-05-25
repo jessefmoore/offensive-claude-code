@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import csv
 import html
+import json
 import re
 import sys
 from collections import OrderedDict
@@ -108,6 +109,38 @@ section { padding: 6vw 7vw; border-top: 1px solid var(--line); position: relativ
   animation: blink 1.6s ease-in-out infinite;
 }
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+/* --- kill-chain replay ("video" playback) --- */
+@keyframes kc-pulse { 0% { box-shadow: 0 0 0 0 rgba(0,255,156,.55); } 70% { box-shadow: 0 0 0 14px rgba(0,255,156,0); } 100% { box-shadow: 0 0 0 0 rgba(0,255,156,0); } }
+@keyframes kc-fire { 0% { transform: translateX(-6px); opacity:.2; } 100% { transform: translateX(0); opacity:1; } }
+.kc { border:1px solid var(--line-2); border-radius:6px; background:linear-gradient(180deg, rgba(0,255,156,.03), transparent 60%); padding:18px; }
+.kc-rail { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 18px; }
+.kc-host { font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:.04em; padding:8px 12px; border:1px solid var(--line-2); border-radius:4px; color:var(--dim); background:var(--panel); transition:all .35s ease; opacity:.55; }
+.kc-host .ip { color:var(--dim); font-size:10px; display:block; }
+.kc-host.live { color:var(--text); opacity:1; border-color:var(--green-d); background:rgba(0,255,156,.06); animation:kc-pulse 1s ease-out; box-shadow:0 0 14px rgba(0,255,156,.25); }
+.kc-host.live .ip { color:var(--green); }
+.kc-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.kc-btn { font-family:'IBM Plex Mono'; font-size:13px; cursor:pointer; padding:7px 13px; border:1px solid var(--line-2); border-radius:4px; background:var(--panel); color:var(--text); transition:all .2s; }
+.kc-btn:hover { border-color:var(--green); color:var(--green); box-shadow:0 0 10px rgba(0,255,156,.2); }
+.kc-btn.play { border-color:var(--green-d); color:var(--green); min-width:84px; }
+.kc-speeds { display:inline-flex; gap:4px; margin-left:6px; }
+.kc-speed { font-family:'IBM Plex Mono'; font-size:11px; cursor:pointer; padding:6px 9px; border:1px solid var(--line); border-radius:3px; background:transparent; color:var(--muted); }
+.kc-speed.sel { color:var(--bg); background:var(--green); border-color:var(--green); font-weight:600; }
+.kc-counter { font-family:'IBM Plex Mono'; font-size:12px; color:var(--muted); margin-left:auto; }
+.kc-counter b { color:var(--green); }
+.kc-progress { height:4px; background:var(--line); border-radius:2px; overflow:hidden; margin-bottom:16px; cursor:pointer; }
+.kc-progress-fill { height:100%; width:0; background:linear-gradient(90deg, var(--cyan), var(--green)); box-shadow:0 0 8px var(--green); transition:width .25s linear; }
+.kc-feed { display:flex; flex-direction:column; gap:6px; max-height:420px; overflow-y:auto; }
+.kc-ev { display:grid; grid-template-columns:128px 10px 1fr; gap:12px; align-items:start; padding:9px 12px; border:1px solid var(--line); border-left:3px solid var(--line-2); border-radius:4px; background:var(--panel); opacity:.32; transition:opacity .3s, border-color .3s, background .3s; }
+.kc-ev .t { font-family:'IBM Plex Mono'; font-size:11px; color:var(--dim); }
+.kc-ev .dot { width:9px; height:9px; border-radius:50%; background:var(--line-2); margin-top:6px; transition:all .3s; }
+.kc-ev .x { font-size:.92em; color:var(--muted); }
+.kc-ev.fired { opacity:1; background:rgba(0,255,156,.04); }
+.kc-ev.fired .t { color:var(--text); }
+.kc-ev.fired .x { color:var(--text); }
+.kc-ev.fired .dot { background:var(--green); box-shadow:0 0 10px var(--green); }
+.kc-ev.now { border-color:var(--green); border-left-color:var(--green); animation:kc-fire .4s ease-out; box-shadow:0 0 18px rgba(0,255,156,.18); }
+.kc-ev.p0 .dot.seedc { background:var(--cyan); } .kc-ev.p1.fired .dot { background:var(--amber); box-shadow:0 0 10px var(--amber);} .kc-ev.p3.fired .dot,.kc-ev.p5.fired .dot { background:var(--red); box-shadow:0 0 10px var(--red);} .kc-ev.p4.fired .dot { background:var(--violet); box-shadow:0 0 10px var(--violet);}
 h2 {
   font-family: 'Fraunces', Georgia, serif; font-weight: 600;
   font-size: clamp(30px, 4.4vw, 62px);
@@ -722,6 +755,7 @@ class Finding:
     evidence: str = ""
     impact: str = ""
     solution: str = ""
+    remediation: str = ""
     references: str = ""
     body: str = ""
 
@@ -771,17 +805,18 @@ def parse_findings(report_md: str) -> list[Finding]:
         f = Finding(fid=m.group(1), title=m.group(2).strip())
         f.body = body
         f.rating = _kv_extract(body, "Rating")
-        f.cvss_score = _kv_extract(body, "CVSSv4 Score")
-        f.cvss_vector = _kv_extract(body, "CVSSv4 Vector")
+        f.cvss_score = _kv_extract(body, r"CVSS\s*v?4(?:\.0)?\s*Score")
+        f.cvss_vector = _kv_extract(body, r"CVSS\s*v?4(?:\.0)?\s*Vector")
         f.cwe = _kv_extract(body, "CWE")
         f.mitre = _kv_extract(body, r"MITRE ATT&CK")
-        f.hosts = _kv_extract(body, "Affected hosts")
+        f.hosts = _kv_extract(body, r"Affected hosts?")
         f.location = _kv_extract(body, "Location")
         f.description = _section_extract(body, "Description")
         f.discovery = _section_extract(body, "Discovery")
         f.evidence = _section_extract(body, "Evidence")
-        f.impact = _section_extract(body, "Business Impact")
+        f.impact = _section_extract(body, r"(?:Business )?Impact")
         f.solution = _section_extract(body, "Solution")
+        f.remediation = _section_extract(body, r"Remediation") or f.solution
         f.references = _section_extract(body, "References")
         findings.append(f)
     return findings
@@ -793,7 +828,7 @@ def _kv_extract(body: str, key: str) -> str:
 
 
 def _section_extract(body: str, name: str) -> str:
-    pattern = rf"^####\s+{re.escape(name)}\s*$"
+    pattern = rf"^####\s+{name}\s*$"
     m = re.search(pattern, body, re.MULTILINE)
     if not m:
         return ""
@@ -801,6 +836,45 @@ def _section_extract(body: str, name: str) -> str:
     nxt = re.search(r"^####\s+", body[start:], re.MULTILINE)
     end = start + nxt.start() if nxt else len(body)
     return body[start:end].strip()
+
+
+def extract_h2_section(md: str, name: str) -> str:
+    """Return the body of a top-level '## <name>' section from a markdown doc, else ''.
+    `name` is treated as a regex (so callers can pass alternations)."""
+    m = re.search(rf"^##\s+{name}\s*$", md, re.MULTILINE | re.IGNORECASE)
+    if not m:
+        return ""
+    start = m.end()
+    nxt = re.search(r"^##\s+", md[start:], re.MULTILINE)
+    end = start + nxt.start() if nxt else len(md)
+    return md[start:end].strip()
+
+
+def bucket_remediation(findings: list["Finding"]) -> "OrderedDict[str, list[str]]":
+    """Aggregate each finding's Remediation items into P0/P1/P2 by their leading
+    Immediate / Short-term / Long-term label. Falls back to keyword heuristics."""
+    buckets: "OrderedDict[str, list[str]]" = OrderedDict([("P0", []), ("P1", []), ("P2", [])])
+    for f in findings:
+        if not f.remediation:
+            continue
+        # split into list items (numbered or bulleted)
+        items = re.split(r"^\s*(?:\d+\.|[-*])\s+", f.remediation, flags=re.MULTILINE)
+        for raw in items:
+            raw = " ".join(raw.split()).strip()
+            if not raw:
+                continue
+            low = raw.lower()
+            if low.startswith("**immediate") or "immediate" in low[:24]:
+                key = "P0"
+            elif low.startswith("**short") or "short-term" in low[:24] or "short term" in low[:24]:
+                key = "P1"
+            elif low.startswith("**long") or "long-term" in low[:24] or "long term" in low[:24]:
+                key = "P2"
+            else:
+                key = "P1"
+            txt = re.sub(r"^\*\*(?:immediate|short[- ]term|long[- ]term)\:?\*\*\s*", "", raw, flags=re.IGNORECASE)
+            buckets[key].append(f"<b>{htmlescape(f.fid)}</b> · {md_to_html_inline(txt)}")
+    return buckets
 
 
 def parse_timeline(timeline_md: str) -> list[TimelineEvent]:
@@ -1117,7 +1191,7 @@ def emit_hero(meta: dict, findings: list[Finding], hosts: dict[str, HostRow]) ->
         <span class="l3">// {htmlescape(case_id)}</span>
       </h1>
       <p class="subhead">
-        Internal AD penetration test against <b>{htmlescape(client)}</b> · scope
+        Security assessment against <b>{htmlescape(client)}</b> · scope
         <code>{htmlescape(scope)}</code> · testing model <b>{htmlescape(model)}</b> ·
         <b>{counts['Critical']}</b> Critical / <b>{counts['High']}</b> High /
         <b>{counts['Medium']}</b> Medium / <b>{counts['Low']}</b> Low /
@@ -1156,16 +1230,56 @@ def emit_hero(meta: dict, findings: list[Finding], hosts: dict[str, HostRow]) ->
 """
 
 
-def emit_exec(meta: dict, findings: list[Finding]) -> str:
+def _worst_finding(findings: list[Finding]) -> Finding | None:
+    order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4, "informational": 4}
+    ranked = sorted(findings, key=lambda f: order.get(f.rating.lower().split()[0] if f.rating else "info", 5))
+    return ranked[0] if ranked else None
+
+
+def _dwell(timeline: list[TimelineEvent]) -> str:
+    """Human-ish span between first and last timeline event (best-effort)."""
+    if len(timeline) < 2:
+        return "single session"
+    a, b = timeline[0].when, timeline[-1].when
+    ma = re.search(r"(\d{1,2}):(\d{2})", a)
+    mb = re.search(r"(\d{1,2}):(\d{2})", b)
+    same_day = a[:10] == b[:10]
+    if ma and mb and same_day:
+        d = (int(mb.group(1)) * 60 + int(mb.group(2))) - (int(ma.group(1)) * 60 + int(ma.group(2)))
+        if 0 <= d < 600:
+            return f"~{d} min" if d < 90 else f"~{d // 60}h {d % 60}m"
+    return f"{a} → {b}"
+
+
+def emit_exec(meta: dict, findings: list[Finding], timeline: list[TimelineEvent]) -> str:
     counts = severity_counts(findings)
-    sev = "CRITICAL" if counts['Critical'] else ("HIGH" if counts['High'] else "MEDIUM")
+    sev = "CRITICAL" if counts['Critical'] else ("HIGH" if counts['High'] else ("MEDIUM" if counts['Medium'] else "LOW"))
     sev_color = "red" if counts['Critical'] else ("amber" if counts['High'] else "")
+    worst = _worst_finding(findings)
+    worst_txt = htmlescape(worst.title) if worst else "no critical issues"
+    # hosts pwn3d derived from each high/critical finding's affected-host field
+    pwn_hosts = {f.hosts.split("(")[0].strip() for f in findings if f.rating.lower().startswith(("critical", "high")) and f.hosts}
+    pwn_hosts.discard("")
+    root_flag = meta.get("root_flag", "")
+    recover = "Root/admin obtained" if root_flag else ("Privileged access" if counts['Critical'] else "Limited")
     # Build root causes table from each finding's CWE
     rows = []
     for i, f in enumerate(findings, 1):
         if f.rating.lower().startswith(("critical", "high")):
             rows.append(f"""<tr><td class="a">{i}</td><td>{md_to_html_inline(f.title)}</td><td class="c">{md_to_html_inline(f.mitre)}</td><td class="m">{md_to_html_inline(f.cwe)}</td></tr>""")
     rows_html = "\n".join(rows[:12])  # cap
+    # Mitigation roadmap synthesized from each finding's Remediation (Immediate/Short/Long -> P0/P1/P2)
+    buckets = bucket_remediation(findings)
+    def _rm_list(items: list[str]) -> str:
+        if not items:
+            return "<li>No items at this horizon — see detailed findings.</li>"
+        return "\n".join(f"<li>{it}</li>" for it in items[:8])
+    residual = (
+        f"<b>Residual risk.</b> The chain ended in <b>{htmlescape(recover.lower())}</b> on "
+        f"<b>{htmlescape(', '.join(sorted(pwn_hosts)) or meta.get('client',''))}</b>. Until every "
+        "credential, key, and secret exposed along the documented path is rotated, treat the affected "
+        "systems as compromised. Re-test after remediation to confirm the chain is broken."
+    )
     return f"""
 <section class="reveal" id="sec-exec" style="background: linear-gradient(180deg, rgba(255,59,59,.04), transparent 50%);">
   <div class="section-tag" style="color: var(--red); border-color: var(--red-d); background: rgba(255,59,59,.04);">// 01 · executive briefing</div>
@@ -1181,15 +1295,15 @@ def emit_exec(meta: dict, findings: list[Finding]) -> str:
     <div class="sev-lvl">
       <div class="lab">Severity</div>
       <div class="val">{sev}</div>
-      <div class="sub">Identity-tier breach · full AD compromise</div>
+      <div class="sub">Highest-rated issue: {worst_txt}</div>
     </div>
     <div class="sev-grid">
       <div class="sg"><div class="k">Findings (Critical)</div><div class="v {sev_color}">{counts['Critical']}</div><div class="d">of {len(findings)} total</div></div>
       <div class="sg"><div class="k">Findings (High)</div><div class="v amber">{counts['High']}</div><div class="d">substantial uplift</div></div>
-      <div class="sg"><div class="k">Recoverability</div><div class="v red">krbtgt extracted</div><div class="d">2× rotation required</div></div>
-      <div class="sg"><div class="k">Cross-forest blast</div><div class="v amber">Documented</div><div class="d">password reuse audit</div></div>
-      <div class="sg"><div class="k">Data exfil</div><div class="v">NTDS dual-forest</div><div class="d">via DCSync chains</div></div>
-      <div class="sg"><div class="k">Regulatory</div><div class="v amber">Domain-tier</div><div class="d">tier-0 secrets disclosed</div></div>
+      <div class="sg"><div class="k">Outcome</div><div class="v red">{htmlescape(recover)}</div><div class="d">{'flag captured' if root_flag else 'see findings'}</div></div>
+      <div class="sg"><div class="k">Hosts compromised</div><div class="v amber">{len(pwn_hosts)}</div><div class="d">{htmlescape(', '.join(sorted(pwn_hosts))[:48]) or 'in-scope estate'}</div></div>
+      <div class="sg"><div class="k">Dwell / window</div><div class="v">{htmlescape(_dwell(timeline))}</div><div class="d">{len(timeline)} logged actions</div></div>
+      <div class="sg"><div class="k">Testing model</div><div class="v amber">{htmlescape(meta.get('model','—'))}</div><div class="d">{htmlescape(meta.get('status','') or 'engagement')}</div></div>
     </div>
   </div>
 
@@ -1212,92 +1326,85 @@ def emit_exec(meta: dict, findings: list[Finding]) -> str:
       <div class="rm-col p0">
         <div class="rm-h">Immediate containment</div>
         <ul>
-          <li>Rotate <b>krbtgt × 2</b> (48h apart) in every compromised forest</li>
-          <li>Reset every account in NTDS; force password change at next logon</li>
-          <li>Disable Guest accounts on all in-scope DCs and member servers</li>
-          <li>Restrict <code>ReadGMSAPassword</code> to tier-0 admin groups</li>
-          <li>Audit gMSAs for DCSync-equivalent rights (<code>GetChanges*</code> on domain root)</li>
-          <li>Reset LAPS-managed local-admin passwords on every host</li>
+          {_rm_list(buckets['P0'])}
         </ul>
       </div>
       <div class="rm-col p1">
         <div class="rm-h">Hardening &amp; Detection</div>
         <ul>
-          <li>Enforce LDAP signing + channel binding (<code>LdapEnforceChannelBinding=2</code>) on all DCs</li>
-          <li>Enforce SMB signing required on every member server</li>
-          <li>Disable LLMNR/NBT-NS/mDNS via GPO</li>
-          <li>Audit ADCS templates; disable HTTP web enrollment (ESC8)</li>
-          <li>Move privileged accounts into <b>Protected Users</b> security group</li>
-          <li>Enable Credential Guard on all member servers</li>
+          {_rm_list(buckets['P1'])}
         </ul>
       </div>
       <div class="rm-col p2">
         <div class="rm-h">Architectural</div>
         <ul>
-          <li>Adopt Microsoft Tier 0/1/2 administrative model</li>
-          <li>Eliminate cross-forest identity password reuse via SSO/federation</li>
-          <li>Deploy Windows LAPS for unique rotated local-admin passwords</li>
-          <li>Replace cleartext-storing services (FTP) with authenticated SFTP</li>
-          <li>Deploy banned-password lists (Azure AD Password Protection)</li>
-          <li>Quarterly purple-team replay of this attack chain</li>
+          {_rm_list(buckets['P2'])}
         </ul>
       </div>
     </div>
   </div>
 
   <div class="residual-note">
-    <b>Residual risk.</b> With <code>ntds.dit</code> contents extracted from both forests, every domain password
-    hash is compromised <b>permanently</b>. Double krbtgt rotation stops golden-ticket forgery against new
-    sessions, but offline cracking of lifted NTDS yields plaintext for any account that isn't forced to rotate.
-    Treat this as a <b>full identity-tier breach</b>, not a host-tier incident.
+    {residual}
   </div>
 </section>
 """
 
 
-def emit_story(meta: dict, findings: list[Finding], timeline: list[TimelineEvent]) -> str:
+def emit_story(meta: dict, findings: list[Finding], timeline: list[TimelineEvent], report_md: str = "") -> str:
     counts = severity_counts(findings)
     n_events = len(timeline)
     n_crit = counts["Critical"]
-    prose_paragraphs = []
-    # Use F18 / F20 / F28 summaries if present (the cornerstone findings)
-    # otherwise stitch from the first Critical findings
-    cornerstones = [f for f in findings if f.rating.lower().startswith("critical")]
-    if cornerstones:
-        intro = (
-            f"<p>The {htmlescape(meta.get('client','engagement'))} engagement reached "
-            f"<b>{n_crit} Critical findings</b> across "
-            f"<b>{n_events} logged operator actions</b>. The chain ran end-to-end from "
-            "zero credentials through Guest fallback, share looting, local-admin compromise, "
-            "LSA secrets, LAPS read over-delegation, and finally DCSync on two independent paths.</p>"
-        )
-        prose_paragraphs.append(intro)
-        for f in cornerstones[:4]:
-            short = (f.description or "").split("\n\n")[0][:600]
-            prose_paragraphs.append(
-                f"<p><b>{htmlescape(f.fid)} — {md_to_html_inline(f.title)}.</b> {md_to_html_inline(short)}</p>"
-            )
-        prose_paragraphs.append(
-            "<p class=\"end\">Final state: dual-forest Domain Admin via two independent chains "
-            "(cross-forest password reuse and gMSA→DCSync). krbtgt hashes captured in both forests; "
-            "rotation required.</p>"
-        )
+    pwn_hosts = {f.hosts.split("(")[0].strip() for f in findings
+                 if f.rating.lower().startswith(("critical", "high")) and f.hosts}
+    pwn_hosts.discard("")
+    # Prefer operator-authored narrative from report.md (verbatim), else stitch from findings.
+    narrative = (extract_h2_section(report_md, r"Engagement Narrative")
+                 or extract_h2_section(report_md, r"Executive Summary"))
+    headline = meta.get("headline", "") or meta.get("story_title", "")
+    if narrative:
+        prose = _render_prose(narrative)
+        if not headline:
+            headline = "How the chain <em>actually</em> ran."
     else:
-        prose_paragraphs.append("<p>Engagement narrative to be drafted from findings.</p>")
-    prose = "\n".join(prose_paragraphs)
+        paras = [
+            f"<p>The <b>{htmlescape(meta.get('client','engagement'))}</b> engagement logged "
+            f"<b>{n_events} operator actions</b> producing <b>{n_crit} Critical</b> and "
+            f"<b>{counts['High']} High</b> findings. The chain ran end-to-end as follows.</p>"
+        ]
+        for f in findings:
+            if not f.rating.lower().startswith(("critical", "high")):
+                continue
+            short = (f.description or "").split("\n\n")[0][:600]
+            paras.append(f"<p><b>{htmlescape(f.fid)} — {md_to_html_inline(f.title)}.</b> {md_to_html_inline(short)}</p>")
+        if meta.get("root_flag") or meta.get("user_flag"):
+            paras.append(f"<p class=\"end\">Final state: {htmlescape('root/admin obtained' if meta.get('root_flag') else 'foothold obtained')} on "
+                         f"<b>{htmlescape(', '.join(sorted(pwn_hosts)) or meta.get('client',''))}</b>.</p>")
+        prose = "\n".join(paras)
+        if not headline:
+            headline = "How the chain <em>actually</em> ran."
 
+    stats = [
+        (str(n_crit), "Critical findings", ""),
+        (str(counts['High']), "High findings", ""),
+        (str(n_events), "logged actions", ""),
+        (str(len(pwn_hosts)), "hosts compromised", "red" if pwn_hosts else ""),
+        (htmlescape(_dwell(timeline)), "window", ""),
+        ("✓" if meta.get("root_flag") else ("✓" if meta.get("user_flag") else "—"),
+         "objective" + (" (root)" if meta.get("root_flag") else (" (user)" if meta.get("user_flag") else "")),
+         "red" if meta.get("root_flag") else ""),
+    ]
+    stat_html = "\n".join(
+        f'    <div class="ss {cls}"><div class="n">{val}</div><div class="l">{lab}</div></div>'
+        for val, lab, cls in stats
+    )
     return f"""
 <section class="reveal" id="sec-story" style="background: linear-gradient(180deg, rgba(0,255,156,.025), transparent 40%);">
-  <div class="section-tag">// 02 · the story · zero to dual-forest DA</div>
-  <h2>From zero credentials to <em>two forests</em> in one window.</h2>
+  <div class="section-tag">// 02 · the story</div>
+  <h2>{headline}</h2>
 
   <div class="story-stats">
-    <div class="ss"><div class="n">{n_crit}</div><div class="l">Critical findings</div></div>
-    <div class="ss"><div class="n">{counts['High']}</div><div class="l">High findings</div></div>
-    <div class="ss"><div class="n">{n_events}</div><div class="l">logged actions</div></div>
-    <div class="ss red"><div class="n">2</div><div class="l">independent chains to DA</div></div>
-    <div class="ss"><div class="n">2</div><div class="l">forests compromised</div></div>
-    <div class="ss red"><div class="n">∞</div><div class="l">krbtgt hashes, permanently</div></div>
+{stat_html}
   </div>
 
   <div class="story-prose">
@@ -1358,49 +1465,189 @@ def emit_master_timeline(timeline: list[TimelineEvent]) -> str:
 """
 
 
-def emit_graph(graph_mmd: str | None) -> str:
-    """Render attack-graph mermaid if the operator provided one; otherwise emit a placeholder."""
+def _phase_class_for_finding(f: "Finding") -> str:
+    """Map a finding to a graph node class by phase keywords in its title."""
+    t = (f.title + " " + f.cwe + " " + f.mitre).lower()
+    if any(k in t for k in ["dcsync", "ntds", "krbtgt", "domain admin", "root", "privilege escalation", "file write", "sudo"]):
+        return "da"
+    if any(k in t for k in ["credential", "password", "secret", "hash", "token", "reuse"]):
+        return "cred"
+    if any(k in t for k in ["rce", "code execution", "injection", "upload", "deserial", "exploit"]):
+        return "pwn"
+    if any(k in t for k in ["disclosure", "enumeration", "recon", "exposure", "ssrf"]):
+        return "recon"
+    return "foothold"
+
+
+def emit_graph(graph_mmd: str | None, findings: list[Finding] | None = None, meta: dict | None = None) -> str:
+    """Render the operator-authored attack graph (attack_graph.mmd) if present; otherwise
+    synthesize a linear mermaid chain from the ordered findings for THIS engagement."""
+    meta = meta or {}
     if not graph_mmd:
-        # Synthesize a placeholder pentest-style attack graph
-        graph_mmd = """
-flowchart LR
-  RECON[Unauthenticated Recon]:::recon --> FOOTHOLD[Guest Fallback / Anonymous SMB]:::foothold
-  FOOTHOLD --> CRED[Cleartext Credential Chain]:::cred
-  CRED --> LADM[Local Admin via Predictable Cred]:::pwn
-  LADM --> LSA[LSA Secrets / DPAPI / LAPS Read]:::cred
-  LSA --> DOMA[Domain Admin Path A: cross-forest jesse PtH]:::da
-  LSA --> DOMB[Domain Admin Path B: alambix → gMSA → DCSync]:::da
-  DOMA --> DCSYNC1[NTDS Forest 1]:::dcsync
-  DOMB --> DCSYNC2[NTDS Forest 2]:::dcsync
-  DCSYNC1 --> KRBTGT1[krbtgt - Forest 1]:::krbtgt
-  DCSYNC2 --> KRBTGT2[krbtgt - Forest 2]:::krbtgt
-  classDef recon fill:#0b2030,stroke:#58a6ff,color:#e6edf3
-  classDef foothold fill:#251b00,stroke:#ffb800,color:#e6edf3
-  classDef cred fill:#1b1530,stroke:#c084fc,color:#e6edf3
-  classDef pwn fill:#3a0d0d,stroke:#ff3b3b,color:#e6edf3
-  classDef da fill:#0d2b1f,stroke:#00ff9c,color:#e6edf3
-  classDef dcsync fill:#0d2b1f,stroke:#00ff9c,color:#e6edf3
-  classDef krbtgt fill:#3a0d0d,stroke:#ff3b3b,color:#e6edf3
-""".strip()
+        nodes = []
+        edges = []
+        prev = "START"
+        nodes.append('  START([Unauthenticated]):::recon')
+        for f in (findings or []):
+            nid = f.fid.upper()
+            label = f"{f.fid}: {f.title}".replace('"', "'")[:54]
+            cls = _phase_class_for_finding(f)
+            nodes.append(f'  {nid}["{label}"]:::{cls}')
+            edges.append(f"  {prev} --> {nid}")
+            prev = nid
+        outcome = "ROOT / Domain Admin" if meta.get("root_flag") else ("Foothold" if meta.get("user_flag") else "Objective")
+        ocls = "da" if meta.get("root_flag") else "pwn"
+        nodes.append(f'  WIN(({outcome})):::{ocls}')
+        edges.append(f"  {prev} --> WIN")
+        graph_mmd = (
+            "flowchart LR\n" + "\n".join(nodes) + "\n" + "\n".join(edges) + "\n"
+            "  classDef recon fill:#0b2030,stroke:#58a6ff,color:#e6edf3\n"
+            "  classDef foothold fill:#251b00,stroke:#ffb800,color:#e6edf3\n"
+            "  classDef cred fill:#1b1530,stroke:#c084fc,color:#e6edf3\n"
+            "  classDef pwn fill:#3a0d0d,stroke:#ff3b3b,color:#e6edf3\n"
+            "  classDef da fill:#0d2b1f,stroke:#00ff9c,color:#e6edf3\n"
+        )
     graph_escaped = graph_mmd  # mermaid blocks don't need HTML-escaping inside .mermaid
     return f"""
 <section class="reveal" id="sec-graph">
   <div class="section-tag">// 04 · attack graph · the kill chain</div>
   <h2>How the chain <em>actually</em> ran.</h2>
-  <p class="lede">Each node is an attacker waypoint; each edge is a transition we proved in the engagement.
-  Two independent paths to dual-forest DA — neither requires the other.</p>
+  <p class="lede">Each node is an attacker waypoint; each edge is a transition proven in the engagement.
+  Authored from <code>attack_graph.mmd</code> if present, else synthesized from the ordered findings.</p>
   <div class="graph-wrap">
     <div class="mermaid">
 {graph_escaped}
     </div>
   </div>
   <div class="graph-legend">
-    <div class="li"><span class="sw" style="background:#58a6ff"></span>Recon</div>
+    <div class="li"><span class="sw" style="background:#58a6ff"></span>Recon / disclosure</div>
     <div class="li"><span class="sw" style="background:#ffb800"></span>Foothold</div>
     <div class="li"><span class="sw" style="background:#c084fc"></span>Credential</div>
-    <div class="li"><span class="sw" style="background:#ff3b3b"></span>Pwn3d / krbtgt</div>
-    <div class="li"><span class="sw" style="background:#00ff9c"></span>Domain Admin</div>
+    <div class="li"><span class="sw" style="background:#ff3b3b"></span>Code exec / Pwn3d</div>
+    <div class="li"><span class="sw" style="background:#00ff9c"></span>Root / Domain Admin</div>
   </div>
+</section>
+"""
+
+
+def _phase_of(text: str) -> int:
+    """Infer offensive phase index 0-5 from free-text event (mirrors emit_master_timeline)."""
+    t = text.lower()
+    if any(k in t for k in ["dcsync", "ntds", "krbtgt", "domain admin", "forest", "golden", "silver ticket"]):
+        return 5
+    if any(k in t for k in ["psexec", "wmiexec", "winrm", "smbexec", "pivot", "secretsdump", "lateral", "relay"]):
+        return 4
+    if any(k in t for k in ["local admin", "pwn3d", "laps", "sam", "lsa", "dpapi", "shadow cred", "root", "sudo", "privesc", "escalat", "gmsa"]):
+        return 3
+    if any(k in t for k in ["bloodhound", "kerberoast", "as-rep", "user enum", "ldap", "enum"]):
+        return 2
+    if any(k in t for k in ["foothold", "credential chain", "ftp", "spider", "rce", "shell", "login", "exploit", "cve"]):
+        return 1
+    if any(k in t for k in ["ping sweep", "null", "anonymous", "guest", "kerbrute", "rid-brute", "sweep", "nmap", "recon", "scan"]):
+        return 0
+    return 2
+
+
+def emit_replay(timeline: list[TimelineEvent], hosts: dict[str, "HostRow"]) -> str:
+    """Interactive kill-chain replay — a 'video' playback that fires timeline events in
+    order, pulses host chips as they come under operator control, and leaves a glowing trail.
+    Self-contained: vanilla JS sequencer + CSS keyframes, driven by timeline.md + hosts.csv."""
+    if not timeline:
+        return ""
+    host_names = list(hosts.keys())
+    events = []
+    for ev in timeline:
+        p = _phase_of(ev.text)
+        plain = re.sub(r"\*\*?|`|\[|\]", "", ev.text)
+        mentioned = [h for h in host_names if h and h.lower() in plain.lower()]
+        events.append({
+            "t": ev.when,
+            "x": md_to_html_inline(ev.text),
+            "p": p,
+            "hosts": mentioned,
+        })
+    rail = "\n".join(
+        f'      <div class="kc-host" data-host="{htmlescape(h)}"><span>{htmlescape(h)}</span>'
+        f'<span class="ip">{htmlescape(hosts[h].ip)}</span></div>'
+        for h in host_names
+    )
+    ev_rows = "\n".join(
+        f'      <div class="kc-ev p{e["p"]}" data-i="{i}">'
+        f'<span class="t">{htmlescape(e["t"])}</span><span class="dot"></span>'
+        f'<span class="x">{e["x"]}</span></div>'
+        for i, e in enumerate(events)
+    )
+    data_json = json.dumps(events, ensure_ascii=False)
+    total = len(events)
+    return f"""
+<section class="reveal" id="sec-replay" style="background: linear-gradient(180deg, rgba(0,255,156,.03), transparent 60%);">
+  <div class="section-tag">// 05 · kill-chain replay · playback</div>
+  <h2>Watch the chain <em>fire</em>.</h2>
+  <p class="lede">Press play and the engagement replays in UTC order — edges fire, host chips pulse as
+  they come under operator control, and a glowing trail persists behind the cursor. Scrub the bar or
+  step event-by-event. Speed is a playback multiplier, not real time.</p>
+  <div class="kc" data-events='{htmlescape(data_json)}'>
+    <div class="kc-rail">
+{rail}
+    </div>
+    <div class="kc-controls">
+      <button class="kc-btn" data-act="reset" title="Reset">&#10227;</button>
+      <button class="kc-btn" data-act="back" title="Step back">&#9198;</button>
+      <button class="kc-btn play" data-act="play">&#9654; PLAY</button>
+      <button class="kc-btn" data-act="fwd" title="Step forward">&#9197;</button>
+      <span class="kc-speeds">
+        <button class="kc-speed sel" data-speed="1">1&times;</button>
+        <button class="kc-speed" data-speed="4">4&times;</button>
+        <button class="kc-speed" data-speed="16">16&times;</button>
+        <button class="kc-speed" data-speed="60">60&times;</button>
+      </span>
+      <span class="kc-counter"><b class="kc-cur">0</b>/{total} events</span>
+    </div>
+    <div class="kc-progress" title="Scrub"><div class="kc-progress-fill"></div></div>
+    <div class="kc-feed">
+{ev_rows}
+    </div>
+  </div>
+  <script>
+  (function(){{
+    var root = document.currentScript.previousElementSibling;
+    if(!root || !root.classList.contains('kc')) {{ root = document.querySelector('#sec-replay .kc'); }}
+    var feed = root.querySelector('.kc-feed');
+    var evs = Array.prototype.slice.call(feed.querySelectorAll('.kc-ev'));
+    var hostChips = {{}};
+    root.querySelectorAll('.kc-host').forEach(function(c){{ hostChips[c.getAttribute('data-host')] = c; }});
+    var data = JSON.parse(root.getAttribute('data-events'));
+    var fill = root.querySelector('.kc-progress-fill');
+    var curEl = root.querySelector('.kc-cur');
+    var playBtn = root.querySelector('[data-act=play]');
+    var idx = 0, timer = null, speed = 1, BASE = 1100;
+    function paint(){{
+      evs.forEach(function(el,i){{
+        el.classList.toggle('fired', i < idx);
+        el.classList.toggle('now', i === idx-1);
+      }});
+      Object.values(hostChips).forEach(function(c){{ c.classList.remove('live'); }});
+      for(var i=0;i<idx;i++){{ (data[i].hosts||[]).forEach(function(h){{ if(hostChips[h]) hostChips[h].classList.add('live'); }}); }}
+      fill.style.width = (data.length ? (idx/data.length*100) : 0) + '%';
+      curEl.textContent = idx;
+      if(idx>0 && idx<=evs.length){{ var n=evs[idx-1]; var r=n.getBoundingClientRect(), fr=feed.getBoundingClientRect(); if(r.bottom>fr.bottom||r.top<fr.top) n.scrollIntoView({{block:'nearest'}}); }}
+    }}
+    function step(){{ if(idx>=data.length){{ stop(); return; }} idx++; paint(); }}
+    function play(){{ if(timer) return; if(idx>=data.length) idx=0; playBtn.innerHTML='&#10073;&#10073; PAUSE'; timer=setInterval(step, BASE/speed); }}
+    function stop(){{ if(timer){{ clearInterval(timer); timer=null; }} playBtn.innerHTML='&#9654; PLAY'; }}
+    root.querySelector('[data-act=play]').onclick=function(){{ timer?stop():play(); }};
+    root.querySelector('[data-act=reset]').onclick=function(){{ stop(); idx=0; paint(); }};
+    root.querySelector('[data-act=back]').onclick=function(){{ stop(); if(idx>0) idx--; paint(); }};
+    root.querySelector('[data-act=fwd]').onclick=function(){{ stop(); step(); }};
+    root.querySelectorAll('.kc-speed').forEach(function(b){{ b.onclick=function(){{
+      root.querySelectorAll('.kc-speed').forEach(function(x){{x.classList.remove('sel');}}); b.classList.add('sel');
+      speed=parseFloat(b.getAttribute('data-speed')); if(timer){{ stop(); play(); }}
+    }};}});
+    root.querySelector('.kc-progress').onclick=function(e){{ stop(); var rc=this.getBoundingClientRect(); idx=Math.round((e.clientX-rc.left)/rc.width*data.length); idx=Math.max(0,Math.min(data.length,idx)); paint(); }};
+    evs.forEach(function(el,i){{ el.style.cursor='pointer'; el.onclick=function(){{ stop(); idx=i+1; paint(); }}; }});
+    paint();
+  }})();
+  </script>
 </section>
 """
 
@@ -1574,93 +1821,115 @@ def guess_tactic(tid: str) -> str:
     return "ATT&CK"
 
 
-def emit_chains() -> str:
-    return """
+def emit_chains(findings: list[Finding], meta: dict, report_md: str = "") -> str:
+    """Render attack chains. Prefer an operator-authored '## Attack Chains' section in report.md;
+    otherwise synthesize a single primary chain from the ordered findings."""
+    authored = extract_h2_section(report_md, r"Attack Chains")
+    if authored:
+        body = _render_prose(authored)
+        cards = f'<div class="chain"><div class="n">Primary chain <span class="p">CLEARED</span></div><div class="s">{body}</div><div class="bar"><i style="width:100%"></i></div></div>'
+        lede = "Operator-authored compromise path(s) for this engagement."
+    else:
+        steps = [f"{f.fid} {f.title}" for f in findings]
+        outcome = "root/admin" if meta.get("root_flag") else ("foothold" if meta.get("user_flag") else "objective")
+        chain_txt = " → ".join(htmlescape(s) for s in steps) or "see detailed findings"
+        if steps:
+            chain_txt += f" → <b>{htmlescape(outcome)}</b>"
+        cleared = "CLEARED" if (meta.get("root_flag") or meta.get("user_flag")) else "PARTIAL"
+        cards = (f'<div class="chain"><div class="n">Primary chain <span class="p">{cleared}</span></div>'
+                 f'<div class="s">{chain_txt}</div><div class="bar"><i style="width:100%"></i></div></div>')
+        lede = "The compromise path, synthesized from the ordered findings. Each step is a proven transition documented in the detailed findings."
+    return f"""
 <section class="reveal" id="sec-chains">
-  <div class="section-tag">// 07 · attack chains · independent paths to forest DA</div>
-  <h2>Two chains. <em>Both</em> ended in krbtgt.</h2>
-  <p class="lede">Two completely independent paths to dual-forest Domain Admin. Each chain is
-  self-contained: removing every step of one does not break the other.</p>
+  <div class="section-tag">// 07 · attack chains · how compromise was reached</div>
+  <h2>The path to compromise.</h2>
+  <p class="lede">{lede}</p>
   <div class="chain-grid">
-    <div class="chain"><div class="n">Chain A · Guest fallback → cross-forest pwn <span class="p">CLEARED</span></div>
-      <div class="s">Anonymous SMB → Guest-readable share <code>infos.txt</code> → FTP cleartext <code>plans.txt</code>
-      → local-admin via predictable username + leaked password → SAM + LSA dump → cleartext domain user
-      → DPAPI vault → LAPS over-delegation → REFERENDUM secretsdump → <code>jesse</code> identity password reuse
-      across forests → PtH armorique.local DC → DCSync both forests.</div>
-      <div class="bar"><i style="width:100%"></i></div>
-    </div>
-    <div class="chain"><div class="n">Chain B · alambix → gMSA → DCSync <span class="p">CLEARED</span></div>
-      <div class="s">A regular Protected-Users-bound domain user (<code>alambix</code>) holds
-      <code>ReadGMSAPassword</code> on <code>gMSA-obelix$</code> → extract current gMSA NT hash →
-      <code>gMSA-obelix$</code> has <code>GetChanges + GetChangesAll</code> directly on the domain root →
-      DCSync → full armorique.local NTDS. Two AD over-delegations stacked on a non-admin user.
-      Independent of Chain A — never touches <code>jesse</code> or rome.local.</div>
-      <div class="bar"><i style="width:100%"></i></div>
-    </div>
+    {cards}
   </div>
 </section>
 """
 
 
-def emit_dead_ends() -> str:
-    return """
+def emit_dead_ends(report_md: str = "") -> str:
+    """Render dead ends ONLY from an operator-authored '## Dead Ends' section in report.md.
+    Each '- **title** — why' (or '- title — why') list item becomes a reject card.
+    If no such section exists, the section is omitted entirely (no stale placeholder)."""
+    section = extract_h2_section(report_md, r"Dead Ends")
+    if not section:
+        return ""
+    cards = []
+    n = 0
+    for line in section.splitlines():
+        m = re.match(r"^\s*(?:\d+\.|[-*])\s+(.+)$", line)
+        if not m:
+            continue
+        item = m.group(1).strip()
+        # split "title — why" / "title - why" / "title: why"
+        parts = re.split(r"\s+[—–-]\s+|:\s+", item, maxsplit=1)
+        title = parts[0].strip()
+        why = parts[1].strip() if len(parts) > 1 else ""
+        n += 1
+        cards.append(
+            f'  <div class="reject"><span class="cid">DEAD END {n}</span> · '
+            f'<span class="bad">{md_to_html_inline(title)}</span>'
+            + (f'<div class="why">{md_to_html_inline(why)}</div>' if why else "")
+            + "</div>"
+        )
+    if not cards:
+        return ""
+    return f"""
 <section class="reveal" id="sec-dead-ends">
   <div class="section-tag">// 08 · dead ends · paths that didn't pan out</div>
   <h2>What we ruled out.</h2>
-  <p class="lede">Operator methodology requires showing the ground we tested and ruled out. These attempts
-  failed for reasons that are themselves engagement findings (defense-in-depth working, neutralized
-  misconfigurations, hardened endpoints).</p>
-  <div class="reject">
-    <span class="cid">DEAD END 1</span> · <span class="bad">jesse:[REDACTED-PASSWORD] — incorrect credential</span>
-    <div class="why">Operator-supplied guess cracked against jesse's cached DCC2 hash and tested via NTLM SMB,
-    LDAP, WinRM, and Kerberos AS-REQ across all 4 in-scope hosts on both forests. Multiple verified offline
-    and online; the password belongs to <code>jesse2</code> + <code>svc_wikijs</code> (intra-domain password
-    collision), not <code>jesse</code>.</div>
-  </div>
-  <div class="reject">
-    <span class="cid">DEAD END 2</span> · <span class="bad">S4U2Self+S4U2Proxy on alambix — KDC_ERR_BADOPTION</span>
-    <div class="why">alambix has <code>TRUSTED_TO_AUTH_FOR_DELEGATION</code> + a constrained-delegation target
-    of <code>CIFS/armorique.armorique.local</code> (the DC), but is also in <b>Protected Users</b>. Protected
-    Users makes the user's TGT non-forwardable by design, so S4U2Proxy fails. Defense-in-depth working —
-    the misconfiguration is neutralized, not exploitable.</div>
-  </div>
-  <div class="reject">
-    <span class="cid">DEAD END 3</span> · <span class="bad">Kerberoast in armorique.local · no usable hashes</span>
-    <div class="why">Only SPN-bearing principal in armorique.local besides krbtgt is <code>alambix</code> itself.
-    Roasting <code>CIFS/aleem.armorique.local</code> via <code>prolix</code> as a regular Authenticated User
-    returned an RC4-HMAC TGS (despite Protected Users on alambix), but offline crack against the lab-themed
-    wordlist returned no hit. Hash recovered via DCSync instead.</div>
-  </div>
-  <div class="reject">
-    <span class="cid">DEAD END 4</span> · <span class="bad">Password spray against 27 armorique.local users · no hits</span>
-    <div class="why">3 patterns × 27 users via authenticated SMB (Welcome1, Password1, Lehack2024, asterix-cast
-    names, Capitalized + year suffix, Monday-themed). Zero hits. Triggered the pivot to BloodHound shortest-path
-    analysis (per the saved feedback rule).</div>
-  </div>
-  <div class="reject">
-    <span class="cid">DEAD END 5</span> · <span class="bad">VILLAGE SYSVOL/NETLOGON share spider · no creds found</span>
-    <div class="why">Authenticated spider as alambix returned 9 benign GPO templates + 1 empty bait file.
-    No <code>Groups.xml</code> with GPP cpassword, no <code>Registry.xml</code> with AutoLogon, no login
-    scripts with embedded creds. Clean SYSVOL hygiene — a defensive strength.</div>
-  </div>
-  <div class="reject">
-    <span class="cid">DEAD END 6</span> · <span class="bad">DCSync as lapsus → ERROR_DS_DRA_BAD_DN</span>
-    <div class="why">lapsus is a regular domain user with LAPS-read on two hosts but no replication rights.
-    DCSync attempt returned DRSR DN error (not access-denied); lapsus is not tier-0. Resolved by reaching
-    DA via jesse2 (granted DA membership during engagement window for demonstration purposes — disclosed
-    in F18).</div>
-  </div>
+  <p class="lede">Operator methodology requires showing the ground we tested and ruled out — failed attempts
+  are themselves signal (defense-in-depth working, neutralized misconfigurations, hardened endpoints).</p>
+{chr(10).join(cards)}
 </section>
 """
 
 
-def emit_close(meta: dict) -> str:
+def emit_strengths(report_md: str = "") -> str:
+    """Render defensive controls that worked, from report.md '## Summary of Strengths'
+    (bullet list). Omitted entirely if the section is absent or empty."""
+    section = extract_h2_section(report_md, r"Summary of Strengths|Strengths")
+    if not section:
+        return ""
+    items = [re.sub(r"^\s*(?:\d+\.|[-*])\s+", "", ln).strip()
+             for ln in section.splitlines() if re.match(r"^\s*(?:\d+\.|[-*])\s+", ln)]
+    items = [i for i in items if i]
+    if not items:
+        return ""
+    lis = "\n".join(f"    <li>{md_to_html_inline(i)}</li>" for i in items)
+    return f"""
+<section class="reveal" id="sec-strengths" style="background: linear-gradient(180deg, rgba(0,255,156,.03), transparent 50%);">
+  <div class="section-tag">// 09 · strengths · what held</div>
+  <h2>Controls that <em>worked</em>.</h2>
+  <p class="lede">Defenses that blocked or slowed the operator. Recording these is as much a finding as the failures.</p>
+  <ul class="strengths">
+{lis}
+  </ul>
+</section>
+"""
+
+
+def emit_close(meta: dict, findings: list[Finding] | None = None) -> str:
     status = meta.get("status", "in-progress").lower()
-    is_complete = status == "complete"
+    is_complete = status in ("complete", "final", "closed")
     end = meta.get("end") or meta.get("start", "")
     version = meta.get("version", "")
     client = meta.get("client", "")
     assessor = meta.get("assessor", "")
+    counts = severity_counts(findings or [])
+    n = len(findings or [])
+    outcome = ("Full root/administrative compromise achieved." if meta.get("root_flag")
+               else ("Interactive foothold established." if meta.get("user_flag")
+                     else "Findings documented across the in-scope estate."))
+    caption = (
+        f"{n} finding{'s' if n != 1 else ''} — {counts['Critical']} Critical, {counts['High']} High. "
+        f"{outcome} Every step is reproducible via the commands and evidence files in this casebook; "
+        "rotate all exposed secrets and re-test to confirm the chain is broken."
+    )
     label = "ENGAGEMENT CLOSED" if is_complete else "ENGAGEMENT IN PROGRESS"
     stamp_class = "" if is_complete else "draft"
     return f"""
@@ -1668,10 +1937,7 @@ def emit_close(meta: dict) -> str:
   <div class="section-tag">// engagement file closed · {htmlescape(end)} utc</div>
   <h2 class="big">{htmlescape(client)} — <em>{'resolved' if is_complete else 'in progress'}</em>.</h2>
   <p class="caption">
-    Two independent paths to dual-forest Domain Admin. krbtgt extracted in both forests.
-    Cross-forest identity password reuse documented. gMSA + ReadGMSAPassword over-delegation
-    isolated as a parallel compromise primitive. Fully reproducible via the commands and
-    evidence files in this casebook.
+    {htmlescape(caption)}
   </p>
   <div style="margin-top: 42px; padding-top: 28px; border-top: 1px solid var(--line-2); display: inline-flex; flex-direction: column; gap: 6px; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .22em; color: var(--muted); text-transform: uppercase;">
     <span>Signed &nbsp;<b style="color:var(--text); letter-spacing:.3em;">{htmlescape(assessor.upper())}</b></span>
@@ -1682,28 +1948,45 @@ def emit_close(meta: dict) -> str:
 """
 
 
-def emit_chapter_nav(findings: list[Finding]) -> str:
-    """Build the right-side drawer nav."""
-    static_sections = [
-        ("hero", "01", "Engagement File"),
-        ("sec-exec", "02", "Executive Briefing"),
-        ("sec-story", "03", "The Story"),
-        ("sec-master-timeline", "04", "Master Timeline"),
-        ("sec-graph", "05", "Attack Graph"),
-        ("sec-act1", "06", "Act I"),
-        ("sec-act2", "07", "Act II"),
-        ("sec-act3", "08", "Act III"),
-        ("sec-act4", "09", "Act IV"),
-        ("sec-act5", "10", "Act V"),
-        ("sec-hosts", "11", "Host Grid"),
-        ("sec-ttp", "12", "TTP Matrix"),
-        ("sec-chains", "13", "Attack Chains"),
-        ("sec-dead-ends", "14", "Dead Ends"),
-        ("sec-close", "15", "Closed"),
-    ]
+SECTION_LABELS = {
+    "hero": "Engagement File",
+    "sec-exec": "Executive Briefing",
+    "sec-story": "The Story",
+    "sec-master-timeline": "Master Timeline",
+    "sec-graph": "Attack Graph",
+    "sec-replay": "Kill-Chain Replay",
+    "sec-hosts": "Host Grid",
+    "sec-ttp": "TTP Matrix",
+    "sec-chains": "Attack Chains",
+    "sec-dead-ends": "Dead Ends",
+    "sec-strengths": "Strengths",
+    "sec-close": "Closed",
+}
+_ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII"}
+
+
+def emit_chapter_nav(body_html: str) -> str:
+    """Build the right-side drawer nav from the anchors that ACTUALLY rendered, in document
+    order. Optional sections (replay, dead-ends, strengths) and variable act counts are reflected
+    automatically; per-finding chapter anchors are skipped."""
+    present = []
+    seen = set()
+    for sid in re.findall(r'id="(hero|sec-[a-z0-9-]+)"', body_html):
+        if sid in seen:
+            continue
+        seen.add(sid)
+        if sid in SECTION_LABELS:
+            label = SECTION_LABELS[sid]
+        else:
+            m = re.match(r"sec-act(\d+)$", sid)
+            if m:
+                label = f"Act {_ROMAN.get(int(m.group(1)), m.group(1))}"
+            else:
+                continue  # per-finding chapter (sec-f01, …) — not a nav-level section
+        present.append((sid, label))
     items = "\n".join(
-        f'<a href="#{sid}" data-num="{num}">{name}</a>'
-        for sid, num, name in static_sections
+        f'<a href="#{sid}" data-num="{i:02d}">{name}</a>'
+        for i, (sid, name) in enumerate(present, 1)
     )
     return f"""
 <nav class="chapter-nav">
@@ -1755,13 +2038,33 @@ def render(engagement_dir: Path, out_path: Path) -> None:
             sys.exit(2)
 
     meta = parse_yaml_lite(meta_p.read_text(encoding="utf-8"))
-    findings = parse_findings(report_p.read_text(encoding="utf-8"))
+    report_md = report_p.read_text(encoding="utf-8")
+    findings = parse_findings(report_md)
     timeline = parse_timeline(timeline_p.read_text(encoding="utf-8"))
     hosts = parse_hosts(hosts_p.read_text(encoding="utf-8"))
     graph_mmd = graph_p.read_text(encoding="utf-8") if graph_p.is_file() else None
 
     global findings_by_id
     findings_by_id = {f.fid: f for f in findings}
+
+    # Build the body sections first, then derive the chapter-nav from the anchors that
+    # actually rendered (so optional/empty sections never leave dead nav links).
+    body_sections = [
+        emit_hero(meta, findings, hosts),
+        emit_exec(meta, findings, timeline),
+        emit_story(meta, findings, timeline, report_md),
+        emit_master_timeline(timeline),
+        emit_graph(graph_mmd, findings, meta),
+        emit_replay(timeline, hosts),
+        emit_acts_and_chapters(findings),
+        emit_host_grid(hosts, findings_by_id),
+        emit_ttp_matrix(findings),
+        emit_chains(findings, meta, report_md),
+        emit_dead_ends(report_md),
+        emit_strengths(report_md),
+        emit_close(meta, findings),
+    ]
+    body_html = "\n".join(body_sections)
 
     parts = [
         f"""<!DOCTYPE html><html lang="en"><head>
@@ -1775,20 +2078,10 @@ def render(engagement_dir: Path, out_path: Path) -> None:
 </head><body>
 <div class="crt"></div>
 """,
-        emit_chapter_nav(findings),
+        emit_chapter_nav(body_html),
         emit_host_drawer_skeleton(),
         "<main>",
-        emit_hero(meta, findings, hosts),
-        emit_exec(meta, findings),
-        emit_story(meta, findings, timeline),
-        emit_master_timeline(timeline),
-        emit_graph(graph_mmd),
-        emit_acts_and_chapters(findings),
-        emit_host_grid(hosts, findings_by_id),
-        emit_ttp_matrix(findings),
-        emit_chains(),
-        emit_dead_ends(),
-        emit_close(meta),
+        body_html,
         "</main>",
         f"<script src=\"https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js\"></script>",
         f"<script>{JS}</script>",
