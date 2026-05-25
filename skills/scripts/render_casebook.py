@@ -781,6 +781,7 @@ class HostRow:
     host: str
     ip: str
     findings: list[str] = field(default_factory=list)
+    protos: set = field(default_factory=set)
 
 
 SEVERITY_ORDER = ["critical", "high", "medium", "low", "informational", "info"]
@@ -909,6 +910,9 @@ def parse_hosts(hosts_csv: str) -> dict[str, HostRow]:
         fid = (r.get("finding_id") or "").strip()
         if fid and fid not in rows[h].findings:
             rows[h].findings.append(fid)
+        proto = (r.get("proto") or "").strip().lower()
+        if proto and proto not in ("", "n/a", "local"):
+            rows[h].protos.add(proto)
     return rows
 
 
@@ -946,6 +950,28 @@ def role_for_host(host: str, ip: str) -> str:
     if "aws" in h or "cloud" in h:
         return "cloud"
     return "piv"
+
+
+def host_kind(host: str, ip: str, protos: set) -> tuple[str, str]:
+    """Return (color_role, human label) for a host, derived from its observed services
+    (protocols in hosts.csv) plus hostname hints. Scales across engagements: a host with
+    HTTP is a 'Web Server', LDAP/Kerberos a 'Domain Controller', etc."""
+    p = {x.lower() for x in protos}
+    h = host.lower()
+    if "aws" in h or "cloud" in h:
+        return "cloud", "Cloud Resource"
+    if "dc" in h or p & {"ldap", "ldaps", "kerberos", "kpasswd", "adws"}:
+        return "dc", "Domain Controller"
+    if "mssql" in p or "mysql" in p:
+        return "piv", "Database Server"
+    if p & {"winrm", "rdp", "smb"}:
+        return "vict", "Windows Host"
+    if p & {"http", "https"}:
+        return "entry", "Web Server"
+    if "ssh" in p or "ftp" in p:
+        return "piv", "Linux Host"
+    # fall back to the hostname heuristic
+    return role_for_host(host, ip), role_for_host(host, ip).upper()
 
 
 def verdict_for_findings(fids: list[str], findings_by_id: dict[str, Finding]) -> str:
@@ -1824,7 +1850,7 @@ def emit_chapter(f: Finding, act_cls: str) -> str:
 def emit_host_grid(hosts: dict[str, HostRow], findings_by_id: dict[str, Finding]) -> str:
     cards = []
     for h in hosts.values():
-        role = role_for_host(h.host, h.ip)
+        role, kind_label = host_kind(h.host, h.ip, h.protos)
         verdict = verdict_for_findings(h.findings, findings_by_id)
         crit_count = sum(1 for fid in h.findings if findings_by_id.get(fid, Finding("","")).rating.lower().startswith("critical"))
         findings_str = ", ".join(h.findings)
@@ -1840,13 +1866,13 @@ def emit_host_grid(hosts: dict[str, HostRow], findings_by_id: dict[str, Finding]
         data_host = htmlescape(json.dumps({
             "name": h.host,
             "ip": h.ip,
-            "role": role.upper(),
+            "role": kind_label,
             "detail": detail_html,
         }))
         cards.append(f"""
     <div class="host {role} host-clickable" data-host='{data_host}'>
       <div class="name">{htmlescape(h.host)} <span class="ip">{htmlescape(h.ip)}</span></div>
-      <div class="role">{role.upper()}</div>
+      <div class="role">{htmlescape(kind_label)}</div>
       <div class="verdict">{verdict}<div class="findings">{len(h.findings)} findings · {crit_count} Critical</div><div class="findings">{findings_str}</div></div>
     </div>""")
     return f"""
