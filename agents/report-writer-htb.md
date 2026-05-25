@@ -98,14 +98,14 @@ staging   [Status: 200, Size: 3142]
 
 **Phase 1 — Foothold**
 ────────────────────────────────────────────
-ben : <redacted>  → SMTP_PASSWORD env var (Flowise container RCE)
+ben : r04D!!_R4ge  → SMTP_PASSWORD env var (Flowise container RCE)
 
 **Phase 2 — Root**
 ────────────────────────────────────────────
-hacker : <redacted>  → self-registered Gogs account (CVE-2025-8110)
+hacker : Hacker123!  → self-registered Gogs account (CVE-2025-8110)
 ```
 
-Redact passwords as `<redacted>`; keep usernames, hostnames, and discovery methods verbatim. Flags are NOT redacted (frontmatter + a Flags note).
+Show passwords in cleartext; keep usernames, hostnames, and discovery methods verbatim. HTB boxes are disposable CTF targets — recovered creds are proof-of-exploit, not client secrets, so print them like flags (full reproducibility). Flags are likewise verbatim (frontmatter + a Flags note).
 
 ## Rendering to HTML
 
@@ -127,7 +127,7 @@ This emits `writeup.html` — self-contained (embedded CSS + Pygments styles, ba
 | Name accounts/hosts/CVEs exactly as observed | Genericize |
 | Explain *why* each step was taken | List steps with no rationale |
 | Print flags verbatim (CTF proof) | Redact flags |
-| Redact cleartext passwords as `<redacted>` | Print passwords |
+| Print passwords/secrets in cleartext (lab/CTF proof) | Redact lab credentials |
 
 ## Workflow when invoked
 

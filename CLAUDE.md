@@ -41,6 +41,7 @@ Default playbook for any AD engagement. Reference: <https://orange-cyberdefense.
 - **Windows side**: Rubeus, Certify, SharpHound, PowerView, Mimikatz, SharpView, Inveigh.
 - **Cracking**: Hashcat (prefer over John for AD hashes — `-m 13100` Kerberoast, `-m 18200` AS-REP, `-m 5600` NetNTLMv2).
 - **Reference skills**: `skills/active-directory-attack/` and `skills/netexec/` — consult these before reaching for a tool.
+- **Knowledge base**: `kb/` — 310 files of technique references, tool cheatsheets, and HackSmarter writeups. **Always read `kb/INDEX.md` before answering any technique question** — it maps every action to the exact file(s) to load. Never invent commands when the KB has them.
 
 ### OPSEC default posture
 
@@ -91,6 +92,10 @@ Skills are loaded from `./skills/` directory:
 | 23 | mobile-pentest | Android/iOS Offensive Testing |
 | 24 | advanced-redteam | Advanced OPSEC, C2 Infra, Staged Payloads |
 | 25 | active-directory-attack | AD Exploitation, Kerberos, NTLM Relay, Domain Dominance |
+| 26 | hacksmarter-labs | HackSmarter VPN training range — conventions, archetypes, per-lab index |
+| 27 | sliver-c2 | Sliver C2 framework — implant generation, listeners, beacons, post-exploitation, armory, pivoting |
+| 28 | socks-pivoting | SOCKS proxying, proxychains config/modes, multi-hop tunneling, per-tool usage, DNS, OPSEC |
+| 29 | htb | Hack The Box persona — 0xdf methodology, machine enumeration, user→root workflow |
 
 ## Helper Scripts
 
@@ -113,19 +118,21 @@ Agents are loaded from `./agents/` directory:
 | reverse-engineer | Binary analysis and vulnerability discovery |
 | ai-researcher | AI/ML architecture, training, and research |
 | network-analyst | Protocol analysis and network defense |
-| report-writer | Capture pentest findings to a live engagement report (markdown + self-contained HTML) |
+| report-writer-internalpen | Internal Network Penetration Test report — captures findings to a live engagement report (markdown + self-contained HTML) in the lehack2024 house style |
+| report-writer-hacksmarter | Produce a HackSmarter lab write-up in p3ta00 CTF blog style (narrative markdown, creds table, dead ends, flags verbatim) |
+| report-writer-htb | Produce a Hack The Box machine write-up in p3ta00 site style (JFM masthead, Cyberpunk Neon terminal theme) — writeup.md + self-contained writeup.html via render_htb_writeup.py |
 
 ## Engagement Reporting
 
-Every authorized engagement gets a live report under `./engagements/<client-slug>/<YYYY-MM-DD>/`. The `report-writer` agent owns it.
+Every authorized engagement gets a live report under `./engagements/<client-slug>/<YYYY-MM-DD>/`. The `report-writer-internalpen` agent owns it.
 
 ### Kickoff
 
-At engagement start — when the user says "starting a pentest against X", "new engagement", or invokes the `pentester` skill — invoke `report-writer` in **Kickoff** mode. It will run `skills/scripts/new_engagement.py` to scaffold the directory and seed templates. Confirm the client name, engagement window, testing model (Black/Grey/White Box), and assessor identity before it runs.
+At engagement start — when the user says "starting a pentest against X", "new engagement", or invokes the `pentester` skill — invoke `report-writer-internalpen` in **Kickoff** mode. It will run `skills/scripts/new_engagement.py` to scaffold the directory and seed templates. Confirm the client name, engagement window, testing model (Black/Grey/White Box), and assessor identity before it runs.
 
 ### Auto-capture trigger moments
 
-Invoke `report-writer` in **Capture** mode the moment any of these land. Don't batch — each finding gets its own capture so the live HTML stays current:
+Invoke `report-writer-internalpen` in **Capture** mode the moment any of these land. Don't batch — each finding gets its own capture so the live HTML stays current:
 
 - Credentials obtained (cracked hash, sprayed password, GPP cpassword, DPAPI extract, LAPS read)
 - Shell or session obtained on any host
@@ -142,16 +149,35 @@ Pass the agent: the commands you ran, the relevant output (sanitize passwords wi
 
 ### Finalization
 
-When the engagement closes ("we're done", "wrap up", "/report final"), invoke `report-writer` in **Final** mode. It produces the deliverable zip and bumps the report to v1.0.
+When the engagement closes ("we're done", "wrap up", "/report final"), invoke `report-writer-internalpen` in **Final** mode. It produces the deliverable zip and bumps the report to v1.0.
 
 ## Workflow
 
-1. **Identify the task domain** — match to appropriate skill(s)
-2. **Load relevant skill** — follow methodology defined in skill file
-3. **Execute systematically** — follow the skill's protocol step by step
-4. **Validate findings** — confirm exploitability before reporting
-5. **Capture** — invoke `report-writer` as soon as a finding lands (see Engagement Reporting above)
-6. **Document** — CWE, CVSS, MITRE ATT&CK mapping, remediation (the agent enforces this)
+1. **Orient** — read `kb/INDEX.md` to locate technique files relevant to the current task
+2. **Load phase runbook** — read `kb/phases/<N>-<phase>.md` for the current attack phase
+3. **Load relevant skill** — follow methodology defined in `skills/` skill file
+4. **Execute systematically** — follow the phase runbook step by step, consulting KB technique files for exact command syntax
+5. **Check prior labs** — if on a HackSmarter lab, check `kb/writeups/hacksmarter-*/` for similar machines
+6. **Validate findings** — confirm exploitability before reporting
+7. **Capture** — invoke `report-writer-internalpen` as soon as a finding lands (see Engagement Reporting above)
+8. **Document** — CWE, CVSS, MITRE ATT&CK mapping, remediation (the agent enforces this)
+
+### KB Navigation Rules
+
+- **Always read `kb/INDEX.md` first** — one hop to the right file, never scan blindly
+- **Phase files are the runbook** — `kb/phases/0-unauthenticated.md` through `kb/phases/5-cross-forest.md` give ordered command sequences per phase
+- **Technique files are the reference** — `kb/ad/`, `kb/tools/`, `kb/credential-access/`, etc. have exact syntax
+- **IATT/HackTricks are the backup** — `kb/payloads/iatt-ad/` and `kb/hacktricks/` for when the primary file lacks detail
+- **Lab writeups are the context** — `kb/writeups/hacksmarter-2025/`, `kb/writeups/hacksmarter-2026/`, and `kb/writeups/htb/` for prior art on similar machines
+
+### HTB vs Internal Pentester — Persona Switch
+
+| Context | Persona | Skill to load | Phase files |
+|---------|---------|---------------|-------------|
+| HackSmarter lab / real engagement | Internal Pentester (OCD mindmap) | `skills/active-directory-attack/` | `kb/phases/0-5` |
+| Hack The Box machine | HTB Operator (0xdf methodology) | `skills/htb/SKILL.md` | nmap → service enum → foothold → privesc |
+
+When the user says "I'm doing HTB [machine]" or "start on [machine].htb" — switch to HTB persona, load `skills/htb/SKILL.md`, and check `kb/htb/0xdf-machine-index.md` for machines with similar tags to get technique hints.
 
 ## Output Standards
 
