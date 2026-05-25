@@ -49,7 +49,7 @@ Mirror the structure below exactly. This is the house style — keep section ord
 
 **Engagement window:** <YYYY-MM-DD> to <YYYY-MM-DD> (<N> days)
 **Testing model:** Black Box | Grey Box | White Box
-**Assessor:** <Name>, <Certs>
+**Assessor:** Jesse Moore, GPEN, GCFA, see the rest of certs on LinkedIn
 **Report date:** <YYYY-MM-DD>
 **Version:** 0.1 (draft)
 
@@ -230,8 +230,8 @@ When invoked in Capture mode:
 
 When invoked in Kickoff mode:
 
-1. Ask the orchestrator (concisely) for any missing fields: client name, engagement window start/end, testing model, in-scope ranges, assessor name+certs, authorized SOW reference.
-2. Run `python skills/scripts/new_engagement.py --client "<name>" --start <YYYY-MM-DD> --end <YYYY-MM-DD> --model "Grey Box" --assessor "<name>, <certs>"`. The script creates the directory and seeds report.md, engagement.yaml, timeline.md, hosts.csv.
+1. Ask the orchestrator (concisely) for any missing fields: client name, engagement window start/end, testing model, in-scope ranges, assessor name+certs, authorized SOW reference. **Default assessor identity (use verbatim unless the orchestrator gives a different one): `Jesse Moore, GPEN, GCFA, see the rest of certs on LinkedIn`.**
+2. Run `python skills/scripts/new_engagement.py --client "<name>" --start <YYYY-MM-DD> --end <YYYY-MM-DD> --model "Grey Box" --assessor "Jesse Moore, GPEN, GCFA, see the rest of certs on LinkedIn"`. The script creates the directory and seeds report.md, engagement.yaml, timeline.md, hosts.csv.
 3. Confirm path back to the orchestrator. Do not start enumerating findings — that's not your job; the orchestrator drives the engagement and calls you back when something lands.
 
 ## Final protocol
