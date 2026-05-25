@@ -111,14 +111,7 @@ section { padding: 6vw 7vw; border-top: 1px solid var(--line); position: relativ
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
 
 /* --- kill-chain replay ("video" playback) --- */
-@keyframes kc-pulse { 0% { box-shadow: 0 0 0 0 rgba(0,255,156,.55); } 70% { box-shadow: 0 0 0 14px rgba(0,255,156,0); } 100% { box-shadow: 0 0 0 0 rgba(0,255,156,0); } }
-@keyframes kc-fire { 0% { transform: translateX(-6px); opacity:.2; } 100% { transform: translateX(0); opacity:1; } }
 .kc { border:1px solid var(--line-2); border-radius:6px; background:linear-gradient(180deg, rgba(0,255,156,.03), transparent 60%); padding:18px; }
-.kc-rail { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 18px; }
-.kc-host { font-family:'IBM Plex Mono'; font-size:12px; letter-spacing:.04em; padding:8px 12px; border:1px solid var(--line-2); border-radius:4px; color:var(--dim); background:var(--panel); transition:all .35s ease; opacity:.55; }
-.kc-host .ip { color:var(--dim); font-size:10px; display:block; }
-.kc-host.live { color:var(--text); opacity:1; border-color:var(--green-d); background:rgba(0,255,156,.06); animation:kc-pulse 1s ease-out; box-shadow:0 0 14px rgba(0,255,156,.25); }
-.kc-host.live .ip { color:var(--green); }
 .kc-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
 .kc-btn { font-family:'IBM Plex Mono'; font-size:13px; cursor:pointer; padding:7px 13px; border:1px solid var(--line-2); border-radius:4px; background:var(--panel); color:var(--text); transition:all .2s; }
 .kc-btn:hover { border-color:var(--green); color:var(--green); box-shadow:0 0 10px rgba(0,255,156,.2); }
@@ -130,17 +123,34 @@ section { padding: 6vw 7vw; border-top: 1px solid var(--line); position: relativ
 .kc-counter b { color:var(--green); }
 .kc-progress { height:4px; background:var(--line); border-radius:2px; overflow:hidden; margin-bottom:16px; cursor:pointer; }
 .kc-progress-fill { height:100%; width:0; background:linear-gradient(90deg, var(--cyan), var(--green)); box-shadow:0 0 8px var(--green); transition:width .25s linear; }
-.kc-feed { display:flex; flex-direction:column; gap:6px; max-height:420px; overflow-y:auto; }
-.kc-ev { display:grid; grid-template-columns:128px 10px 1fr; gap:12px; align-items:start; padding:9px 12px; border:1px solid var(--line); border-left:3px solid var(--line-2); border-radius:4px; background:var(--panel); opacity:.32; transition:opacity .3s, border-color .3s, background .3s; }
-.kc-ev .t { font-family:'IBM Plex Mono'; font-size:11px; color:var(--dim); }
-.kc-ev .dot { width:9px; height:9px; border-radius:50%; background:var(--line-2); margin-top:6px; transition:all .3s; }
-.kc-ev .x { font-size:.92em; color:var(--muted); }
-.kc-ev.fired { opacity:1; background:rgba(0,255,156,.04); }
-.kc-ev.fired .t { color:var(--text); }
-.kc-ev.fired .x { color:var(--text); }
-.kc-ev.fired .dot { background:var(--green); box-shadow:0 0 10px var(--green); }
-.kc-ev.now { border-color:var(--green); border-left-color:var(--green); animation:kc-fire .4s ease-out; box-shadow:0 0 18px rgba(0,255,156,.18); }
-.kc-ev.p0 .dot.seedc { background:var(--cyan); } .kc-ev.p1.fired .dot { background:var(--amber); box-shadow:0 0 10px var(--amber);} .kc-ev.p3.fired .dot,.kc-ev.p5.fired .dot { background:var(--red); box-shadow:0 0 10px var(--red);} .kc-ev.p4.fired .dot { background:var(--violet); box-shadow:0 0 10px var(--violet);}
+
+/* --- kill-chain replay: interactive SVG attack graph (pivot topology / forensic edges) --- */
+@keyframes kc-nodepulse { 0%{ filter:drop-shadow(0 0 1px rgba(0,255,156,.5)); } 50%{ filter:drop-shadow(0 0 12px rgba(0,255,156,1)); } 100%{ filter:drop-shadow(0 0 1px rgba(0,255,156,.5)); } }
+.kc-graph { width:100%; overflow:auto; border:1px solid var(--line-2); border-radius:6px; margin-bottom:14px;
+  background: radial-gradient(900px 500px at 25% 0%, rgba(0,255,156,.05), transparent 60%), radial-gradient(700px 400px at 90% 100%, rgba(88,166,255,.05), transparent 60%), var(--bg-1); }
+.kc-svg { display:block; }
+.kc-lane { fill:rgba(255,255,255,.012); stroke:rgba(255,255,255,.05); }
+.kc-lanelbl { font-family:'IBM Plex Mono'; font-size:10px; letter-spacing:.25em; fill:var(--dim); text-transform:uppercase; }
+.kc-edge { stroke:var(--line-2); stroke-width:2; fill:none; opacity:.3; transition:stroke .35s, opacity .35s, filter .35s, stroke-width .35s; }
+.kc-edge.fired { opacity:.95; stroke:var(--green); stroke-width:2.5; filter:drop-shadow(0 0 5px var(--green)); }
+.kc-edge.p1.fired { stroke:var(--amber); filter:drop-shadow(0 0 5px var(--amber)); }
+.kc-edge.p4.fired { stroke:var(--violet); filter:drop-shadow(0 0 5px var(--violet)); }
+.kc-edge.p3.fired, .kc-edge.p5.fired { stroke:var(--red); filter:drop-shadow(0 0 5px var(--red)); }
+.kc-elabel { font-family:'IBM Plex Mono'; font-size:9.5px; fill:var(--dim); opacity:0; transition:opacity .35s; }
+.kc-elabel.fired { opacity:.95; fill:var(--text); }
+.kc-node { cursor:pointer; opacity:.4; transition:opacity .35s; }
+.kc-node.on { opacity:1; }
+.kc-node.live > rect { animation:kc-nodepulse 1.1s ease-in-out; }
+.kc-node > rect { fill:var(--panel); stroke:var(--line-2); stroke-width:1.5; }
+.kc-node.np0 > rect { stroke:var(--cyan); }   .kc-node.npop > rect { stroke:var(--green); fill:rgba(0,255,156,.06); }
+.kc-node.np1 > rect { stroke:var(--amber); }   .kc-node.np2 > rect { stroke:var(--cyan); }
+.kc-node.np3 > rect, .kc-node.np5 > rect { stroke:var(--red); }   .kc-node.np4 > rect { stroke:var(--violet); }
+.kc-node.on.np3 > rect, .kc-node.on.np5 > rect { fill:rgba(255,59,59,.07); }
+.kc-node.on.np1 > rect { fill:rgba(255,184,0,.06); }   .kc-node.on.np4 > rect { fill:rgba(192,132,252,.07); }
+.kc-nt { font-family:'IBM Plex Mono'; font-size:12px; font-weight:600; fill:var(--text); }
+.kc-ns { font-family:'IBM Plex Mono'; font-size:10px; fill:var(--muted); }
+.kc-detail { font-family:'IBM Plex Mono'; font-size:12px; color:var(--muted); border:1px solid var(--line); border-left:3px solid var(--green-d); border-radius:4px; padding:10px 12px; background:var(--panel); min-height:20px; }
+.kc-detail b { color:var(--green); }
 h2 {
   font-family: 'Fraunces', Georgia, serif; font-weight: 600;
   font-size: clamp(30px, 4.4vw, 62px);
@@ -1549,48 +1559,114 @@ def _phase_of(text: str) -> int:
     return 2
 
 
-def emit_replay(timeline: list[TimelineEvent], hosts: dict[str, "HostRow"]) -> str:
-    """Interactive kill-chain replay — a 'video' playback that fires timeline events in
-    order, pulses host chips as they come under operator control, and leaves a glowing trail.
-    Self-contained: vanilla JS sequencer + CSS keyframes, driven by timeline.md + hosts.csv."""
+_PHASE_SHORT = {0: "RECON", 1: "FOOTHOLD", 2: "ENUM", 3: "PRIVESC", 4: "LATERAL", 5: "DOMINANCE"}
+
+
+def _wrap(s: str, width: int, maxlines: int) -> list[str]:
+    """Greedy word-wrap to <=width chars, capped at maxlines (last line ellipsised if truncated)."""
+    words = s.split()
+    lines, cur = [], ""
+    for w in words:
+        if len(cur) + len(w) + (1 if cur else 0) <= width:
+            cur = (cur + " " + w).strip()
+        else:
+            if cur:
+                lines.append(cur)
+            cur = w
+            if len(lines) >= maxlines:
+                break
+    if cur and len(lines) < maxlines:
+        lines.append(cur)
+    joined = " ".join(lines)
+    if len(joined) < len(s) and lines:
+        lines[-1] = lines[-1][: max(0, width - 1)].rstrip() + "…"
+    return lines[:maxlines]
+
+
+def emit_replay(timeline: list[TimelineEvent], hosts: dict[str, "HostRow"],
+                meta: dict | None = None, findings: list[Finding] | None = None) -> str:
+    """Interactive kill-chain replay rendered as an animated SVG attack graph (pivot topology /
+    forensic edges). Waypoint nodes are laid out in a serpentine flow; directional edges fire in
+    UTC-timestamp order with a persistent glowing trail and the reached node pulses. Self-contained
+    vanilla-JS sequencer + CSS, driven by timeline.md + hosts.csv."""
     if not timeline:
         return ""
-    host_names = list(hosts.keys())
+    meta = meta or {}
+    host_names = [h for h in hosts.keys() if h]
+
+    def short_time(w: str) -> str:
+        m = re.search(r"(\d{1,2}:\d{2})(?::\d{2})?", w)
+        return m.group(1) if m else (w[-8:] if len(w) > 8 else w)
+
+    fid_title = {f.fid: f.title for f in (findings or [])}
+    # Build the node sequence: node 0 = OPERATOR, then one waypoint per timeline event.
     events = []
     for ev in timeline:
         p = _phase_of(ev.text)
         plain = re.sub(r"\*\*?|`|\[|\]", "", ev.text)
-        mentioned = [h for h in host_names if h and h.lower() in plain.lower()]
-        events.append({
-            "t": ev.when,
-            "x": md_to_html_inline(ev.text),
-            "p": p,
-            "hosts": mentioned,
-        })
-    rail = "\n".join(
-        f'      <div class="kc-host" data-host="{htmlescape(h)}"><span>{htmlescape(h)}</span>'
-        f'<span class="ip">{htmlescape(hosts[h].ip)}</span></div>'
-        for h in host_names
-    )
-    ev_rows = "\n".join(
-        f'      <div class="kc-ev p{e["p"]}" data-i="{i}">'
-        f'<span class="t">{htmlescape(e["t"])}</span><span class="dot"></span>'
-        f'<span class="x">{e["x"]}</span></div>'
-        for i, e in enumerate(events)
-    )
+        fidm = re.search(r"\bF\d{1,2}\b", ev.text)
+        fid = fidm.group(0) if fidm else None
+        host = next((h for h in host_names if h.lower() in plain.lower()),
+                    host_names[0] if host_names else "target")
+        if fid:
+            head = f"{fid} · {host[:16]}"
+            desc = fid_title.get(fid) or _PHASE_SHORT.get(p, "")
+        else:
+            head = _PHASE_SHORT.get(p, "STEP")
+            desc = re.sub(r"^F\d+\s*[:\-]?\s*", "", plain)
+        events.append({"t": ev.when, "x": md_to_html_inline(ev.text), "p": p,
+                       "head": head, "lines": _wrap(desc, 30, 3), "tlabel": short_time(ev.when)})
+
+    op_ip = (meta.get("attacker_ip", "") or "attacker").split("(")[0].strip()[:18]
+    nodes = [{"head": "OPERATOR", "lines": [op_ip], "p": "op"}] + events  # N+1 nodes
+    N = len(events)
+
+    # Serpentine grid layout (wider/taller boxes to fit a wrapped finding title).
+    cols = min(max(N + 1, 1), 4)
+    NW, NH, COLW, ROWH, MX, MY = 244, 92, 296, 172, 34, 30
+    pos = []
+    for i in range(len(nodes)):
+        row = i // cols
+        inrow = i % cols
+        col = inrow if row % 2 == 0 else (cols - 1 - inrow)
+        x = MX + col * COLW
+        y = MY + row * ROWH
+        pos.append((x, y, x + NW / 2, y + NH / 2))
+    rows = (len(nodes) + cols - 1) // cols
+    W = MX * 2 + (cols - 1) * COLW + NW
+    H = MY * 2 + (rows - 1) * ROWH + NH
+
+    svg = []
+    # edges first (drawn under nodes): edge k connects node k-1 -> node k, fires at step k
+    for k in range(1, len(nodes)):
+        _, _, x1, y1 = pos[k - 1]
+        _, _, x2, y2 = pos[k]
+        p = events[k - 1]["p"]
+        svg.append(f'<line class="kc-edge p{p}" data-i="{k}" x1="{x1:.0f}" y1="{y1:.0f}" '
+                   f'x2="{x2:.0f}" y2="{y2:.0f}" marker-end="url(#kcarrow)"/>')
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2 - 6
+        svg.append(f'<text class="kc-elabel" data-i="{k}" x="{mx:.0f}" y="{my:.0f}" '
+                   f'text-anchor="middle">{htmlescape(events[k-1]["tlabel"])}</text>')
+    # nodes
+    for i, nd in enumerate(nodes):
+        x, y, _, _ = pos[i]
+        on = " on" if i == 0 else ""
+        txt = f'<text class="kc-nt" x="{x+12:.0f}" y="{y+22:.0f}">{htmlescape(str(nd["head"]))}</text>'
+        for j, ln in enumerate(nd["lines"]):
+            txt += f'<text class="kc-ns" x="{x+12:.0f}" y="{y+40+j*14:.0f}">{htmlescape(str(ln))}</text>'
+        svg.append(
+            f'<g class="kc-node np{nd["p"]}{on}" data-i="{i}">'
+            f'<rect x="{x:.0f}" y="{y:.0f}" width="{NW}" height="{NH}" rx="6"/>{txt}</g>')
+    svg_markup = "\n      ".join(svg)
     data_json = json.dumps(events, ensure_ascii=False)
-    total = len(events)
     return f"""
 <section class="reveal" id="sec-replay" style="background: linear-gradient(180deg, rgba(0,255,156,.03), transparent 60%);">
-  <div class="section-tag">// 05 · kill-chain replay · playback</div>
+  <div class="section-tag">// 05 · attack graph · interactive · forensic edges</div>
   <h2>Watch the chain <em>fire</em>.</h2>
-  <p class="lede">Press play and the engagement replays in UTC order — edges fire, host chips pulse as
-  they come under operator control, and a glowing trail persists behind the cursor. Scrub the bar or
-  step event-by-event. Speed is a playback multiplier, not real time.</p>
+  <p class="lede">Pivot topology of the engagement. Press play and the edges activate in UTC-timestamp
+  order — each waypoint pulses as it comes under operator control and a glowing trail persists behind
+  the cursor. Click any node to inspect its event. Speed is a playback multiplier, not real time.</p>
   <div class="kc" data-events='{htmlescape(data_json)}'>
-    <div class="kc-rail">
-{rail}
-    </div>
     <div class="kc-controls">
       <button class="kc-btn" data-act="reset" title="Reset">&#10227;</button>
       <button class="kc-btn" data-act="back" title="Step back">&#9198;</button>
@@ -1598,40 +1674,42 @@ def emit_replay(timeline: list[TimelineEvent], hosts: dict[str, "HostRow"]) -> s
       <button class="kc-btn" data-act="fwd" title="Step forward">&#9197;</button>
       <span class="kc-speeds">
         <button class="kc-speed sel" data-speed="1">1&times;</button>
-        <button class="kc-speed" data-speed="4">4&times;</button>
-        <button class="kc-speed" data-speed="16">16&times;</button>
         <button class="kc-speed" data-speed="60">60&times;</button>
+        <button class="kc-speed" data-speed="240">240&times;</button>
+        <button class="kc-speed" data-speed="900">900&times;</button>
       </span>
-      <span class="kc-counter"><b class="kc-cur">0</b>/{total} events</span>
+      <span class="kc-counter"><b class="kc-cur">0</b>/{N} events</span>
     </div>
     <div class="kc-progress" title="Scrub"><div class="kc-progress-fill"></div></div>
-    <div class="kc-feed">
-{ev_rows}
+    <div class="kc-graph">
+      <svg class="kc-svg" viewBox="0 0 {W:.0f} {H:.0f}" width="{W:.0f}" height="{H:.0f}" preserveAspectRatio="xMinYMin meet">
+      <defs><marker id="kcarrow" markerWidth="8" markerHeight="8" refX="6.5" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="context-stroke"/></marker></defs>
+      {svg_markup}
+      </svg>
     </div>
+    <div class="kc-detail">Press &#9654; or click a node to inspect the step.</div>
   </div>
   <script>
   (function(){{
-    var root = document.currentScript.previousElementSibling;
-    if(!root || !root.classList.contains('kc')) {{ root = document.querySelector('#sec-replay .kc'); }}
-    var feed = root.querySelector('.kc-feed');
-    var evs = Array.prototype.slice.call(feed.querySelectorAll('.kc-ev'));
-    var hostChips = {{}};
-    root.querySelectorAll('.kc-host').forEach(function(c){{ hostChips[c.getAttribute('data-host')] = c; }});
+    var root = document.querySelector('#sec-replay .kc');
     var data = JSON.parse(root.getAttribute('data-events'));
+    var edges = {{}}, elabels = {{}}, nodes = {{}};
+    root.querySelectorAll('.kc-edge').forEach(function(e){{ edges[+e.getAttribute('data-i')] = e; }});
+    root.querySelectorAll('.kc-elabel').forEach(function(e){{ elabels[+e.getAttribute('data-i')] = e; }});
+    root.querySelectorAll('.kc-node').forEach(function(n){{ nodes[+n.getAttribute('data-i')] = n; }});
     var fill = root.querySelector('.kc-progress-fill');
     var curEl = root.querySelector('.kc-cur');
+    var detail = root.querySelector('.kc-detail');
     var playBtn = root.querySelector('[data-act=play]');
-    var idx = 0, timer = null, speed = 1, BASE = 1100;
+    var idx = 0, timer = null, speed = 1, BASE = 1300;
     function paint(){{
-      evs.forEach(function(el,i){{
-        el.classList.toggle('fired', i < idx);
-        el.classList.toggle('now', i === idx-1);
-      }});
-      Object.values(hostChips).forEach(function(c){{ c.classList.remove('live'); }});
-      for(var i=0;i<idx;i++){{ (data[i].hosts||[]).forEach(function(h){{ if(hostChips[h]) hostChips[h].classList.add('live'); }}); }}
+      for(var k in edges){{ k=+k; edges[k].classList.toggle('fired', k<=idx); }}
+      for(var k in elabels){{ k=+k; elabels[k].classList.toggle('fired', k<=idx); }}
+      for(var i in nodes){{ i=+i; nodes[i].classList.toggle('on', i<=idx); nodes[i].classList.toggle('live', i===idx); }}
       fill.style.width = (data.length ? (idx/data.length*100) : 0) + '%';
       curEl.textContent = idx;
-      if(idx>0 && idx<=evs.length){{ var n=evs[idx-1]; var r=n.getBoundingClientRect(), fr=feed.getBoundingClientRect(); if(r.bottom>fr.bottom||r.top<fr.top) n.scrollIntoView({{block:'nearest'}}); }}
+      if(idx>0){{ var e=data[idx-1]; detail.innerHTML = '<b>'+e.t+'</b> &middot; '+e.x; }}
+      else {{ detail.textContent = 'Press ▶ or click a node to inspect the step.'; }}
     }}
     function step(){{ if(idx>=data.length){{ stop(); return; }} idx++; paint(); }}
     function play(){{ if(timer) return; if(idx>=data.length) idx=0; playBtn.innerHTML='&#10073;&#10073; PAUSE'; timer=setInterval(step, BASE/speed); }}
@@ -1645,7 +1723,7 @@ def emit_replay(timeline: list[TimelineEvent], hosts: dict[str, "HostRow"]) -> s
       speed=parseFloat(b.getAttribute('data-speed')); if(timer){{ stop(); play(); }}
     }};}});
     root.querySelector('.kc-progress').onclick=function(e){{ stop(); var rc=this.getBoundingClientRect(); idx=Math.round((e.clientX-rc.left)/rc.width*data.length); idx=Math.max(0,Math.min(data.length,idx)); paint(); }};
-    evs.forEach(function(el,i){{ el.style.cursor='pointer'; el.onclick=function(){{ stop(); idx=i+1; paint(); }}; }});
+    for(var i in nodes){{ (function(n){{ n.addEventListener('click', function(){{ stop(); idx=+n.getAttribute('data-i'); paint(); }}); }})(nodes[i]); }}
     paint();
   }})();
   </script>
@@ -2056,7 +2134,7 @@ def render(engagement_dir: Path, out_path: Path) -> None:
         emit_story(meta, findings, timeline, report_md),
         emit_master_timeline(timeline),
         emit_graph(graph_mmd, findings, meta),
-        emit_replay(timeline, hosts),
+        emit_replay(timeline, hosts, meta, findings),
         emit_acts_and_chapters(findings),
         emit_host_grid(hosts, findings_by_id),
         emit_ttp_matrix(findings),
