@@ -147,7 +147,7 @@ section { padding: 6vw 7vw; border-top: 1px solid var(--line); position: relativ
 .kc-node.np3 > rect, .kc-node.np5 > rect { stroke:var(--red); }   .kc-node.np4 > rect { stroke:var(--violet); }
 .kc-node.on.np3 > rect, .kc-node.on.np5 > rect { fill:rgba(255,59,59,.07); }
 .kc-node.on.np1 > rect { fill:rgba(255,184,0,.06); }   .kc-node.on.np4 > rect { fill:rgba(192,132,252,.07); }
-.kc-nt { font-family:'IBM Plex Mono'; font-size:12px; font-weight:600; fill:var(--text); }
+.kc-nt { font-family:'IBM Plex Mono'; font-size:11px; font-weight:600; fill:var(--text); }
 .kc-ns { font-family:'IBM Plex Mono'; font-size:10px; fill:var(--muted); }
 .kc-detail { font-family:'IBM Plex Mono'; font-size:12px; color:var(--muted); border:1px solid var(--line); border-left:3px solid var(--green-d); border-radius:4px; padding:10px 12px; background:var(--panel); min-height:20px; }
 .kc-detail b { color:var(--green); }
@@ -1583,6 +1583,20 @@ def _wrap(s: str, width: int, maxlines: int) -> list[str]:
     return lines[:maxlines]
 
 
+def _mitre_label(m: str) -> str:
+    """Turn a finding MITRE string ('T1552.001 — Unsecured Credentials: Credentials In Files')
+    into a compact node chip: technique name + T-ID, e.g. 'Unsecured Credentials · T1552.001'."""
+    if not m:
+        return ""
+    tid = re.search(r"T\d{4}(?:\.\d{3})?", m)
+    parts = re.split(r"\s[—–-]\s", m, maxsplit=1)
+    name = (parts[1] if len(parts) > 1 else parts[0]).split(":")[0].strip()
+    name = re.sub(r"^T\d{4}(?:\.\d{3})?\s*", "", name)  # strip any leading id
+    if len(name) > 20:
+        name = name[:19].rstrip() + "…"
+    return f"{name} · {tid.group(0)}" if (name and tid) else (name or (tid.group(0) if tid else ""))
+
+
 def emit_replay(timeline: list[TimelineEvent], hosts: dict[str, "HostRow"],
                 meta: dict | None = None, findings: list[Finding] | None = None) -> str:
     """Interactive kill-chain replay rendered as an animated SVG attack graph (pivot topology /
@@ -1599,6 +1613,7 @@ def emit_replay(timeline: list[TimelineEvent], hosts: dict[str, "HostRow"],
         return m.group(1) if m else (w[-8:] if len(w) > 8 else w)
 
     fid_title = {f.fid: f.title for f in (findings or [])}
+    fid_mitre = {f.fid: f.mitre for f in (findings or [])}
     # Build the node sequence: node 0 = OPERATOR, then one waypoint per timeline event.
     events = []
     for ev in timeline:
@@ -1609,7 +1624,8 @@ def emit_replay(timeline: list[TimelineEvent], hosts: dict[str, "HostRow"],
         host = next((h for h in host_names if h.lower() in plain.lower()),
                     host_names[0] if host_names else "target")
         if fid:
-            head = f"{fid} · {host[:16]}"
+            mlabel = _mitre_label(fid_mitre.get(fid, ""))
+            head = f"{fid} · {mlabel}" if mlabel else f"{fid} · {host[:16]}"
             desc = fid_title.get(fid) or _PHASE_SHORT.get(p, "")
         else:
             head = _PHASE_SHORT.get(p, "STEP")
@@ -1623,7 +1639,7 @@ def emit_replay(timeline: list[TimelineEvent], hosts: dict[str, "HostRow"],
 
     # Serpentine grid layout (wider/taller boxes to fit a wrapped finding title).
     cols = min(max(N + 1, 1), 4)
-    NW, NH, COLW, ROWH, MX, MY = 244, 92, 296, 172, 34, 30
+    NW, NH, COLW, ROWH, MX, MY = 270, 92, 326, 172, 34, 30
     pos = []
     for i in range(len(nodes)):
         row = i // cols
