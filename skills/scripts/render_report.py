@@ -6,7 +6,7 @@ output HTML opens correctly when emailed, shared via cloud drive, or
 extracted from a zip on an offline machine — no broken images, no
 external font/CSS calls.
 
-Layout assumption (see agents/report-writer.md):
+Layout assumption (see agents/report-writer-internalpen.md):
 
     engagements/<client>/<date>/
         report.md              <- input

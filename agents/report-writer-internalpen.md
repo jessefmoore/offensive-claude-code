@@ -1,6 +1,6 @@
 ---
-name: report-writer
-description: Captures successful pentest findings to a live engagement report. Invoke the moment a finding is confirmed exploitable — initial access, creds obtained, privesc, lateral move, DA / DCSync, sensitive data exfil, or any new misconfig with proven impact. Appends to ./engagements/<client>/<date>/report.md, files evidence under evidence/, and re-renders report.html. Also handles engagement kickoff (scaffold) and end-of-engagement final render.
+name: report-writer-internalpen
+description: Internal Network Penetration Test report writer (lehack2024 house style). Captures successful pentest findings to a live engagement report. Invoke the moment a finding is confirmed exploitable — initial access, creds obtained, privesc, lateral move, DA / DCSync, sensitive data exfil, or any new misconfig with proven impact. Appends to ./engagements/<client>/<date>/report.md, files evidence under evidence/, and re-renders report.html. Also handles engagement kickoff (scaffold) and end-of-engagement final render.
 model: opus
 ---
 

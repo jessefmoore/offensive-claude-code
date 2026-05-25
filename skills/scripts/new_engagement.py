@@ -1,4 +1,4 @@
-"""Scaffold a new pentest engagement directory with the report-writer template.
+"""Scaffold a new pentest engagement directory with the report-writer-internalpen template.
 
 Creates ./engagements/<client-slug>/<YYYY-MM-DD>/ with:
     engagement.yaml   metadata (client, scope, window, assessor)
@@ -95,7 +95,7 @@ _To be completed as defensive observations accumulate._
 
 ## Detailed Findings
 
-_Findings are appended here by the report-writer agent as they are confirmed._
+_Findings are appended here by the report-writer-internalpen agent as they are confirmed._
 
 ---
 
