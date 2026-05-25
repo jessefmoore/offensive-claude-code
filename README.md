@@ -139,8 +139,13 @@ Detailed patterns with vulnerable/secure code examples, organized by category:
 ## License
 
 Released under the [MIT License](LICENSE) — free to use, modify, and share. Shared so others
-can learn from and build on it. Attribution to the original project that this was bootstrapped
-from is noted at the top of this README.
+can learn from and build on it.
+
+The MIT license applies to **my contributions** to this project. It was bootstrapped from
+[hypnguyen1209/offensive-claude](https://github.com/hypnguyen1209/offensive-claude) (credited at
+the top of this README), which carried no license of its own; any original portions remain the
+property of their respective author(s) and are used here as a starting point under that
+attribution.
 
 > Note: this config is for **authorized** security testing, CTF/lab practice, and education only.
 > Use it only against systems you own or are explicitly permitted to test.
