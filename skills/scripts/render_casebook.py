@@ -880,7 +880,8 @@ def bucket_remediation(findings: list["Finding"]) -> "OrderedDict[str, list[str]
 def parse_timeline(timeline_md: str) -> list[TimelineEvent]:
     events: list[TimelineEvent] = []
     for line in timeline_md.splitlines():
-        m = re.match(r"^\*\*(.+?)\*\*\s+—\s+(.+)$", line.strip())
+        # accept an optional leading bullet ("- " / "* ") and en- or em-dash separator
+        m = re.match(r"^[-*]?\s*\*\*(.+?)\*\*\s+[—–-]\s+(.+)$", line.strip())
         if m:
             events.append(TimelineEvent(when=m.group(1), text=m.group(2)))
     return events
