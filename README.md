@@ -2,7 +2,10 @@
 
 By Jesse Moore — [Talking about this repo on LinkedIn](https://lnkd.in/p/gMqbZH5E)
 
-A comprehensive Claude Code configuration tailored for security researchers, red teamers, and vulnerability analysts. Includes 31 specialized skills, 10 agents, and a large vulnerability/technique reference base covering the full offensive security lifecycle — plus lab-operator personas (HTB, HackSmarter) and a reporting pipeline (internal-pentest, HTB, HackSmarter, and operator-casebook deliverables).
+A Claude Code configuration tailored for Hack The Box. I was able to guide it to Hack Active Boxes. (I didn't include the Knowledge base RAG from it to know how to hack from).
+
+Has a very cool Reporting engine that provides in-depth reporting with operator-casebook (from Aleem reporting engine in JackofAllHacks CTF from NULL404 cybersecurity group)). Also has other reporting structures for Internal-Pentest, HTB writeup and HackSmarter Write Ups.
+
 
 > Originally bootstrapped from [hypnguyen1209/offensive-claude](https://github.com/hypnguyen1209/offensive-claude) as a starting point, and since substantially extended (lab-operator personas, the reporting pipeline, additional skills, and an expanded knowledge base). Thanks to the original author.
 
