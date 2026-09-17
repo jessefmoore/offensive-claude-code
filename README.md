@@ -1,6 +1,6 @@
 # Offensive Security Research Config for Claude Code
 
-By Jesse Moore — [LinkedIn](https://www.linkedin.com/in/jessefmoore/)
+By Jesse Moore — [Talking about this repo on LinkedIn](https://lnkd.in/p/gMqbZH5E)
 
 A comprehensive Claude Code configuration tailored for security researchers, red teamers, and vulnerability analysts. Includes 31 specialized skills, 10 agents, and a large vulnerability/technique reference base covering the full offensive security lifecycle — plus lab-operator personas (HTB, HackSmarter) and a reporting pipeline (internal-pentest, HTB, HackSmarter, and operator-casebook deliverables).
 
