@@ -1,4 +1,4 @@
-# Offensive Security Research Config for Claude Code
+# Offensive Security Claude Code to Hack the Box
 
 By Jesse Moore — [Talking about this repo on LinkedIn](https://lnkd.in/p/gMqbZH5E)
 
